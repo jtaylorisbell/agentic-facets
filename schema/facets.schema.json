@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agenticfacets.dev/schema/facets.schema.json",
+  "title": "Agentic FACETS Manifest",
+  "description": "A machine-readable classification of an agentic system across the six FACETS axes.",
+  "type": "object",
+  "required": ["name", "feedback", "authority", "control", "execution", "topology", "state"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "A short identifier for the system, e.g. 'bounded-incident-investigator'."
+    },
+    "description": {
+      "type": "string"
+    },
+    "feedback": {
+      "type": "object",
+      "description": "How the system knows whether it succeeded.",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["open-loop", "closed-loop"]
+        },
+        "mechanisms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "deterministic-validation",
+              "environmental-verification",
+              "model-critique",
+              "human-review",
+              "hybrid"
+            ]
+          }
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "description": "What the system may do independently.",
+      "required": ["level"],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "advisory",
+            "drafting",
+            "approval-gated",
+            "bounded-autonomous",
+            "broad-autonomous"
+          ]
+        },
+        "allowed_actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "control": {
+      "type": "object",
+      "description": "Who chooses the next step.",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["code-directed", "model-directed"]
+        },
+        "boundaries": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "max_steps": { "type": "integer", "minimum": 1 },
+            "allowed_tools": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "description": "How work progresses.",
+      "required": ["pattern"],
+      "additionalProperties": false,
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "enum": [
+            "sequential",
+            "parallel",
+            "router",
+            "planner-executor",
+            "generator-critic",
+            "handoff",
+            "event-driven"
+          ]
+        }
+      }
+    },
+    "topology": {
+      "type": "object",
+      "description": "How decision-makers are organized.",
+      "required": ["pattern"],
+      "additionalProperties": false,
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "enum": [
+            "none",
+            "single-agent",
+            "router-specialists",
+            "manager-worker",
+            "handoff",
+            "peer-group"
+          ]
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "description": "What persists, and where the source of truth lives.",
+      "required": ["durability"],
+      "additionalProperties": false,
+      "properties": {
+        "durability": {
+          "type": "string",
+          "enum": ["request-local", "session", "durable-task", "persistent"]
+        },
+        "memory": {
+          "type": "string",
+          "enum": ["none", "context-only", "task-scoped", "semantic", "procedural", "environmental"]
+        },
+        "source_of_truth": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

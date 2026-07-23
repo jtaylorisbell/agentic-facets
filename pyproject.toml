@@ -1,0 +1,61 @@
+[project]
+name = "agentic-facets"
+version = "0.1.0"
+description = "A practical framework and code cookbook for classifying agent architectures across Feedback, Authority, Control, Execution, Topology, and State."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Taylor Isbell" }]
+keywords = [
+    "ai-agents",
+    "agentic-ai",
+    "multi-agent-systems",
+    "llm-agents",
+    "agent-architecture",
+    "ai-engineering",
+    "mlops",
+    "databricks",
+]
+dependencies = [
+    "pydantic>=2.6",
+    "openai>=1.30",
+    "pyyaml>=6.0",
+    "jsonschema>=4.21",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs-material>=9.5",
+    "mkdocs-mermaid2-plugin>=1.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.1",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/jtaylorisbell/agentic-facets"
+Repository = "https://github.com/jtaylorisbell/agentic-facets"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/facets"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
