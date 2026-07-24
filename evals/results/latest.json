@@ -1,0 +1,245 @@
+{
+  "generated_at": "2026-07-24T13:11:22+00:00",
+  "model": "system.ai.claude-sonnet-5",
+  "note": "Real model + real data; answers scored by OfficeQA reward.py. Results vary run to run \u2014 the pattern (document access helps; extra agents are not automatically better) is the durable signal, not any single cell.",
+  "recipes": [
+    {
+      "recipe": "00_closed_book_baseline",
+      "questions": 4,
+      "accuracy": 0.5,
+      "avg_model_calls": 1.0,
+      "avg_tokens": 424.8,
+      "runs": [
+        {
+          "uid": "UID0030",
+          "correct": 0.0,
+          "model_calls": 1,
+          "total_tokens": 517,
+          "steps": 1,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0121",
+          "correct": 0.0,
+          "model_calls": 1,
+          "total_tokens": 482,
+          "steps": 1,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0056",
+          "correct": 1.0,
+          "model_calls": 1,
+          "total_tokens": 354,
+          "steps": 1,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0184",
+          "correct": 1.0,
+          "model_calls": 1,
+          "total_tokens": 346,
+          "steps": 1,
+          "stopped_reason": "final"
+        }
+      ]
+    },
+    {
+      "recipe": "01_single_tool_agent",
+      "questions": 4,
+      "accuracy": 0.5,
+      "avg_model_calls": 10.0,
+      "avg_tokens": 181586.8,
+      "runs": [
+        {
+          "uid": "UID0030",
+          "correct": 0.0,
+          "model_calls": 12,
+          "total_tokens": 123538,
+          "steps": 12,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0121",
+          "correct": 1.0,
+          "model_calls": 7,
+          "total_tokens": 85721,
+          "steps": 7,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0056",
+          "correct": 0.0,
+          "model_calls": 16,
+          "total_tokens": 494420,
+          "steps": 16,
+          "stopped_reason": "max_steps"
+        },
+        {
+          "uid": "UID0184",
+          "correct": 1.0,
+          "model_calls": 5,
+          "total_tokens": 22668,
+          "steps": 5,
+          "stopped_reason": "final"
+        }
+      ]
+    },
+    {
+      "recipe": "02_routed_workflow",
+      "questions": 4,
+      "accuracy": 0.5,
+      "avg_model_calls": 6.5,
+      "avg_tokens": 33029.8,
+      "runs": [
+        {
+          "uid": "UID0030",
+          "correct": 0.0,
+          "model_calls": 5,
+          "total_tokens": 6283,
+          "steps": 4,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0121",
+          "correct": 1.0,
+          "model_calls": 6,
+          "total_tokens": 48278,
+          "steps": 5,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0056",
+          "correct": 0.0,
+          "model_calls": 9,
+          "total_tokens": 55284,
+          "steps": 8,
+          "stopped_reason": "max_steps"
+        },
+        {
+          "uid": "UID0184",
+          "correct": 1.0,
+          "model_calls": 6,
+          "total_tokens": 22274,
+          "steps": 5,
+          "stopped_reason": "final"
+        }
+      ]
+    },
+    {
+      "recipe": "03_planner_executor",
+      "questions": 4,
+      "accuracy": 0.5,
+      "avg_model_calls": 6.0,
+      "avg_tokens": 16460.8,
+      "runs": [
+        {
+          "uid": "UID0030",
+          "correct": 0.0,
+          "model_calls": 6,
+          "total_tokens": 16078,
+          "steps": 5,
+          "stopped_reason": "max_replans"
+        },
+        {
+          "uid": "UID0121",
+          "correct": 0.0,
+          "model_calls": 6,
+          "total_tokens": 17104,
+          "steps": 5,
+          "stopped_reason": "max_replans"
+        },
+        {
+          "uid": "UID0056",
+          "correct": 1.0,
+          "model_calls": 6,
+          "total_tokens": 13502,
+          "steps": 5,
+          "stopped_reason": "max_replans"
+        },
+        {
+          "uid": "UID0184",
+          "correct": 1.0,
+          "model_calls": 6,
+          "total_tokens": 19159,
+          "steps": 5,
+          "stopped_reason": "max_replans"
+        }
+      ]
+    },
+    {
+      "recipe": "04_parallel_investigation",
+      "questions": 3,
+      "accuracy": 0.3333,
+      "avg_model_calls": 11.67,
+      "avg_tokens": 158659.7,
+      "runs": [
+        {
+          "uid": "UID0025",
+          "correct": 0.0,
+          "model_calls": 14,
+          "total_tokens": 197585,
+          "steps": 3,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0062",
+          "correct": 0.0,
+          "model_calls": 12,
+          "total_tokens": 168462,
+          "steps": 3,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0065",
+          "correct": 1.0,
+          "model_calls": 9,
+          "total_tokens": 109932,
+          "steps": 3,
+          "stopped_reason": "final"
+        }
+      ]
+    },
+    {
+      "recipe": "05_manager_worker",
+      "questions": 4,
+      "accuracy": 0.5,
+      "avg_model_calls": 17.75,
+      "avg_tokens": 67741.2,
+      "runs": [
+        {
+          "uid": "UID0030",
+          "correct": 0.0,
+          "model_calls": 24,
+          "total_tokens": 95522,
+          "steps": 5,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0121",
+          "correct": 0.0,
+          "model_calls": 12,
+          "total_tokens": 61971,
+          "steps": 3,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0056",
+          "correct": 1.0,
+          "model_calls": 26,
+          "total_tokens": 93220,
+          "steps": 5,
+          "stopped_reason": "final"
+        },
+        {
+          "uid": "UID0184",
+          "correct": 1.0,
+          "model_calls": 9,
+          "total_tokens": 20252,
+          "steps": 3,
+          "stopped_reason": "final"
+        }
+      ]
+    }
+  ]
+}

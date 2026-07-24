@@ -117,27 +117,33 @@ function:
 uv run python evals/run_evals.py
 ```
 
-Here's what one run on `UID0121` looks like (real model, so exact numbers wander between runs):
+Here's a committed run over the recipes' evaluation questions — the full artifact, with
+per-question detail, lives in [`evals/results/latest.md`](evals/results/latest.md):
 
-| Recipe | Answer | Correct? | Model calls |
-|---|---|---|---|
-| 00 · Closed-book baseline | 6 | ✗ | 1 |
-| 01 · Single document agent | 2 | ✓ | 5 |
-| 02 · Routed workflow | 2 | ✓ | 6 |
-| 05 · Manager–worker | 6 | ✗ | 10 |
+| Recipe | Questions | Accuracy | Avg model calls | Avg tokens |
+|---|---|---|---|---|
+| 00 · Closed-book baseline | 4 | 0.50 | 1.0 | 425 |
+| 01 · Single document agent | 4 | 0.50 | 10.0 | 181,587 |
+| 02 · Routed workflow | 4 | 0.50 | 6.5 | 33,030 |
+| 03 · Planner–executor | 4 | 0.50 | 6.0 | 16,461 |
+| 04 · Parallel investigation | 3 | 0.33 | 11.7 | 158,660 |
+| 05 · Manager–worker | 4 | 0.50 | 17.8 | 67,741 |
 
-Read this slowly, because it's easy to misread. Giving the model documents (00 → 01) is the change
-that mattered — it turned a wrong guess into a grounded, correct answer. But then look at
-manager–worker: a manager delegating to a researcher and a calculator, **10 model calls**, and it
-got it *wrong* — worse than the single agent that just read the table itself. Beautiful diagram,
-more machinery, worse answer.
+Read this slowly, because it is *not* the tidy story you'd expect. These are genuinely hard
+questions, and every architecture lands around 0.50 — document access is *necessary* (the
+closed-book baseline only scores where the model already knew the figure), but on multi-step
+numeric questions it is not *sufficient*: the agents still misread tables and botch arithmetic.
 
-I can't emphasize this caveat enough: these are *real model runs*, so the exact answers and counts
-shift between runs, and a single question is an anecdote, not a benchmark. Run the whole set and
-the picture holds in aggregate — document access is the big lever; extra agents are not free and
-not automatically better. That's the durable lesson: **more machinery is not more capability.**
-Pick the simplest architecture that clears your reliability bar, and make every fancier recipe
-earn its price. Do not be a hero.
+Now look at the cost columns. The manager–worker system averages **17.8 model calls** — one
+question took 26 — to reach the same 0.50 as the planner–executor's **6 calls and ~16k tokens**.
+The fancy topologies cost 3–18× more here and buy no accuracy. Beautiful diagrams, far more
+machinery, same score.
+
+I can't emphasize this caveat enough: these are *real model runs*, so exact cells shift between
+runs — regenerate the file with `--out` and the numbers move. The **pattern** is the durable
+lesson, not any single number: document access is the lever that matters, extra machinery is not
+free, and it is not automatically better. Pick the simplest architecture that clears your
+reliability bar, and make every fancier recipe earn its price. Do not be a hero.
 
 ## Is this cheating? (No — and here's exactly what's real)
 

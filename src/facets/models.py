@@ -176,6 +176,8 @@ class DatabricksModel:
         token: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = 8192,
+        max_retries: int = 4,
+        retry_base_delay: float = 1.0,
     ):
         from facets.config import load_env
 
@@ -187,6 +189,9 @@ class DatabricksModel:
         # we only send it when a caller explicitly asks for one.
         self.temperature = temperature
         self.max_tokens = max_tokens
+        # Rate-limit resilience for concurrent runs (e.g. the eval harness).
+        self.max_retries = max_retries
+        self.retry_base_delay = retry_base_delay
         if not host or not token:
             raise RuntimeError(
                 "DatabricksModel needs DATABRICKS_HOST and DATABRICKS_TOKEN. "
@@ -251,7 +256,7 @@ class DatabricksModel:
         removable = ["temperature", "max_tokens", "tool_choice"]
         for _ in range(len(removable) + 1):
             try:
-                return await self._client.chat.completions.create(**payload)
+                return await self._create_with_retry(payload)
             except BadRequestError as exc:
                 message = str(exc)
                 dropped = next(
@@ -262,7 +267,30 @@ class DatabricksModel:
                     raise
                 payload.pop(dropped, None)
         # Should be unreachable: the loop above either returns or raises.
-        return await self._client.chat.completions.create(**payload)
+        return await self._create_with_retry(payload)
+
+    async def _create_with_retry(self, payload: dict[str, Any]) -> Any:
+        """Call the gateway, retrying on rate limits with exponential backoff.
+
+        Running several recipes concurrently (the eval harness) can trip the gateway's rate
+        limit. Rather than fail the run, back off and retry a few times. Backoff is deterministic
+        (1s, 2s, 4s, 8s) — no jitter — which is fine at the small concurrency we use.
+        """
+        import asyncio
+
+        from openai import APIConnectionError, RateLimitError
+
+        last_exc: Exception | None = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                return await self._client.chat.completions.create(**payload)
+            except (RateLimitError, APIConnectionError) as exc:
+                last_exc = exc
+                if attempt == self.max_retries:
+                    break
+                await asyncio.sleep(self.retry_base_delay * (2**attempt))
+        assert last_exc is not None
+        raise last_exc
 
 
 def _content_text(content: Any) -> str | None:
