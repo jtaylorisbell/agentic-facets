@@ -1,0 +1,63 @@
+site_name: Agentic FACETS
+site_description: >
+  A practical framework and code cookbook for classifying agent architectures across Feedback,
+  Authority, Control, Execution, Topology, and State.
+site_author: Taylor Isbell
+repo_url: https://github.com/jtaylorisbell/agentic-facets
+repo_name: jtaylorisbell/agentic-facets
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mermaid2
+
+nav:
+  - Introduction: index.md
+  - The FACETS Framework: facets-framework.md
+  - Choosing a Pattern: choosing-a-pattern.md
+  - Recipes:
+      - Overview: recipes/index.md
+      - 00 · Deterministic Baseline: recipes/00-deterministic-baseline.md
+      - 01 · Single Tool Agent: recipes/01-single-tool-agent.md
+      - 05 · Manager–Worker: recipes/05-manager-worker.md
+  - Evaluation: evaluation.md
+  - Production Checklist: production-checklist.md
