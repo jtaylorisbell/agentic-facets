@@ -1,15 +1,14 @@
 flowchart LR
-    In([Incident: pipeline failed]) --> A{{Agent: decide next step}}
+    Q([Treasury Bulletin question]) --> A{{Agent: decide next step}}
     A -->|choose tool| T[Tool call]
     T -->|result| A
-    A -->|enough evidence| Out([Root-cause diagnosis])
+    A -->|enough evidence| Out([Answer + FINAL_ANSWER])
 
-    subgraph tools [Read-only tools]
+    subgraph tools [Document tools]
         direction TB
-        t1[get_pipeline_status]
-        t2[query_logs]
-        t3[query_metrics]
-        t4[check_data_quality]
-        t5[list_recent_deployments]
+        t1[list_source_documents]
+        t2[search_document]
+        t3[read_document]
+        t4[compute]
     end
     T -.-> tools

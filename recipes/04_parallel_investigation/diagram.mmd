@@ -1,12 +1,10 @@
 flowchart LR
-    In([Incident: pipeline failed]) --> F{{Fan out}}
-    F --> LW[Log Investigator]
-    F --> MW[Metrics Investigator]
-    F --> DW[Data-Quality Investigator]
-    F --> PW[Deployment Investigator]
-    LW --> J{{Fan in}}
-    MW --> J
-    DW --> J
-    PW --> J
-    J --> S{{Synthesize}}
-    S --> Out([Root-cause diagnosis])
+    Q([Multi-document question]) --> F{{Fan out: one reader per document}}
+    F --> A[Reader: document A]
+    F --> B[Reader: document B]
+    F --> C[Reader: document C]
+    A --> J{{Fan in}}
+    B --> J
+    C --> J
+    J --> S{{Synthesize + compute}}
+    S --> Out([Answer + FINAL_ANSWER])

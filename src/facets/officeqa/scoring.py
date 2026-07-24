@@ -32,9 +32,11 @@ class _OfficeQAScorer:
         ground_truth = str(case.metadata.get("answer", ""))
         if not ground_truth:
             return Score(self.name, 0.0, "no ground-truth answer on case")
-        if result.hit_limit:
-            return Score(self.name, 0.0, f"stopped: {result.stopped_reason}")
 
+        # Grade whatever answer the run produced. We deliberately do NOT auto-zero a run that hit
+        # a step/replan limit: recipes like the planner–executor still synthesize a final answer
+        # after the loop ends, and reward.py already returns 0.0 for a missing/empty answer. So a
+        # correct answer counts even if the loop was truncated.
         value = score_answer(ground_truth, result.answer, self._tolerance)
         extracted = extract_final_answer(result.answer).strip()
         if not extracted:

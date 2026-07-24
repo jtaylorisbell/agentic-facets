@@ -1,11 +1,7 @@
 recipe: 02_routed_workflow
-case:
-  id: orders_daily_schema_break
-  goal: The 'orders_daily' pipeline has failed. Triage and investigate; report the root cause.
-  pipeline: orders_daily
-  expected_root_cause: schema mismatch
-  # After routing to the data-quality specialist, expect its evidence path.
-  expected_tools:
-    - check_data_quality
-    - query_logs
-    - list_recent_deployments
+subset: pro
+uids:
+  - UID0030
+  - UID0121
+  - UID0056
+  - UID0184

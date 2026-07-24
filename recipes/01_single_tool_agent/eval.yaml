@@ -1,11 +1,7 @@
 recipe: 01_single_tool_agent
-case:
-  id: orders_daily_schema_break
-  goal: The 'orders_daily' pipeline has failed. Investigate and report the root cause.
-  pipeline: orders_daily
-  expected_root_cause: schema mismatch
-  # The model chooses tools; we expect at least the log + data-quality evidence path.
-  expected_tools:
-    - query_logs
-    - check_data_quality
-    - list_recent_deployments
+subset: pro
+uids:
+  - UID0030
+  - UID0121
+  - UID0056
+  - UID0184

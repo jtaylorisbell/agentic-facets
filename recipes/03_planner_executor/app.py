@@ -1,26 +1,26 @@
 """Recipe 03 — Planner–executor.
 
-    Goal -> Plan -> Execute steps -> Inspect -> Re-plan -> Finish
+    Question -> plan document reads/computations -> execute -> inspect -> re-plan -> answer
 
-Same problem as the single tool agent, changed along two axes:
+Changed from the single document agent along two axes:
 
     Execution:  reactive tool loop      ->  plan-then-execute (explicit plan)
     State:      message history only     ->  an explicit, persisted task plan
 
-The difference from Recipe 01 is subtle but important. Recipe 01's plan lives *implicitly* in the
-message history — the model decides the next tool one step at a time. Here the plan is a
-**first-class artifact**: the planner emits a structured list of steps up front (persisted to
-``TaskState.plan``), code executes them, then the planner *inspects results and re-plans* —
-adding steps only when the evidence so far is insufficient. That separation makes the plan
-inspectable, resumable, and easy to reason about.
+Recipe 01's plan lives *implicitly* in the message history — the model decides the next tool one
+step at a time. Here the plan is a **first-class artifact**: the planner emits a structured list
+of steps up front (persisted to ``TaskState.plan``), code executes each via the document tools,
+then the planner *inspects results and re-plans* — adding steps only when the evidence so far is
+insufficient. That separation makes the plan inspectable, resumable, and easy to reason about —
+the precondition for durable execution (Recipe 08, later).
 
 FACETS profile:
     F=closed-loop  A=advisory  C=model-directed
     E=planner-executor  T=single-agent  S=durable-task (explicit plan)
 
 Run it:
-    uv run python recipes/03_planner_executor/app.py           # offline, scripted
-    uv run python recipes/03_planner_executor/app.py --live     # live Databricks endpoint
+    uv run python recipes/03_planner_executor/app.py
+    uv run python recipes/03_planner_executor/app.py --uid UID0056
 """
 
 from __future__ import annotations
@@ -34,25 +34,33 @@ sys.path[:0] = [str(_ROOT), str(_ROOT / "src")]
 
 from facets.agents import AgentResult, ExecutionContext
 from facets.messages import Message
-from facets.models import FakeModel, ModelProvider, Usage
+from facets.models import Usage
+from facets.officeqa import (
+    FINAL_ANSWER_INSTRUCTION,
+    OfficeQADataset,
+    Question,
+    build_document_tools,
+)
 from facets.state import PlanStep, StepStatus, TaskState
 from facets.tools import ToolRegistry
-from tools import DEFAULT_PIPELINE, read_only_tools
 
-MAX_REPLANS = 3
+MAX_REPLANS = 4
 
-PLANNER_PROMPT = """You are an incident investigation planner. Given the goal and the results
-gathered so far, produce a JSON plan of the next investigation steps. Reply with ONLY JSON:
+PLANNER_PROMPT = """You are a research planner for Treasury Bulletin questions. Given the goal and
+the results gathered so far, produce a JSON plan of the next steps. Reply with ONLY JSON:
 
   {"steps": [{"tool": "<tool name>", "arguments": {...}, "rationale": "<why>"}], "done": <bool>}
 
-Set "done" to true (and "steps" to []) once the gathered evidence is enough to name the root
-cause. Available tools: get_pipeline_status, query_logs, query_metrics, check_data_quality,
-list_recent_deployments. Do not over-plan — request only the steps you still need."""
+Set "done" to true (and "steps" to []) once the gathered evidence is enough to answer. Available
+tools and their arguments:
+  - list_source_documents: {}
+  - search_document: {"source_file": "...", "pattern": "...", "context_lines": 2}
+  - read_document: {"source_file": "...", "start_line": 0, "max_lines": 60}
+  - compute: {"expression": "406 + 462 + 500"}
+Plan incrementally — request only the steps you still need. Start by listing the documents."""
 
-SYNTH_PROMPT = """You are an incident investigator. Using the executed plan and its results,
-write a concise root-cause diagnosis naming the specific column and the upstream change
-responsible. Advisory only — recommend remediation but take no action."""
+SYNTH_PROMPT = f"""You are answering a Treasury Bulletin question. Using the executed plan and its
+results below, give the final answer. Be precise about units. {FINAL_ANSWER_INSTRUCTION}"""
 
 
 def _parse_plan(text: str) -> dict:
@@ -69,15 +77,13 @@ def _parse_plan(text: str) -> dict:
         return {"steps": [], "done": True}
 
 
-async def _plan(
-    model: ModelProvider, state: TaskState, ctx: ExecutionContext, iteration: int
-) -> dict:
+async def _plan(model, state: TaskState, ctx: ExecutionContext, iteration: int) -> dict:
     """One planning/replanning model call. Sees the goal + results gathered so far."""
     gathered = {s.id: s.result for s in state.plan if s.status is StepStatus.DONE}
     messages = [
         Message.system(PLANNER_PROMPT),
         Message.user(
-            f"Goal: {state.goal}\nResults so far: {json.dumps(gathered, default=str)}\n"
+            f"Goal: {state.goal}\nResults so far: {json.dumps(gathered, default=str)[:6000]}\n"
             "What are the next steps?"
         ),
     ]
@@ -91,10 +97,10 @@ async def _execute_step(
     registry: ToolRegistry, step: PlanStep, planned: dict, ctx: ExecutionContext
 ) -> None:
     """Execute one planned step by dispatching to its tool. Code, not a model, runs the step."""
-    tool = registry.get(planned["tool"])
+    tool = registry.get(planned.get("tool", ""))
     if tool is None:
         step.status = StepStatus.FAILED
-        step.result = f"Unknown tool '{planned['tool']}'."
+        step.result = f"Unknown tool '{planned.get('tool')}'."
         return
     args = dict(planned.get("arguments", {}))
     with ctx.trace.span(f"execute:{planned['tool']}", "tool", tool=planned["tool"]):
@@ -104,29 +110,22 @@ async def _execute_step(
     ctx.state.record_artifact(step.id, result.content)
 
 
-async def run(
-    pipeline: str = DEFAULT_PIPELINE, *, model: ModelProvider | None = None
-) -> AgentResult:
-    registry = ToolRegistry(read_only_tools())
-    state = TaskState(
-        task_id=f"incident-{pipeline}",
-        goal=f"Investigate why the '{pipeline}' pipeline failed and name the root cause.",
-    )
+async def run(question: Question, dataset: OfficeQADataset, *, model) -> AgentResult:
+    registry = ToolRegistry(build_document_tools(dataset, question.source_files))
+    state = TaskState(task_id=f"officeqa-{question.uid}", goal=question.question)
     ctx = ExecutionContext(task_id=state.task_id, state=state)
 
-    planner_model: ModelProvider = model or scripted_planner(pipeline)
     step_counter = 0
     stopped_reason = "final"
 
     # Plan -> execute -> inspect/replan loop. The plan grows only when evidence is insufficient.
     for iteration in range(MAX_REPLANS + 1):
-        plan = await _plan(planner_model, state, ctx, iteration)
+        plan = await _plan(model, state, ctx, iteration)
         new_steps = plan.get("steps", [])
 
         if not new_steps:
             if plan.get("done"):
                 break
-            # No steps and not done: nothing left to try; stop to avoid spinning.
             stopped_reason = "no_progress"
             break
 
@@ -134,7 +133,7 @@ async def run(
             step_counter += 1
             step = PlanStep(
                 id=f"step-{step_counter}",
-                description=f"{planned['tool']}: {planned.get('rationale', '')}",
+                description=f"{planned.get('tool')}: {planned.get('rationale', '')}",
             )
             state.plan.append(step)
             state.checkpoint(f"planned {step.id}")
@@ -143,20 +142,21 @@ async def run(
     else:
         stopped_reason = "max_replans"
 
-    # Synthesize the final diagnosis from the executed plan.
-    synth_model: ModelProvider = model or scripted_synth()
+    # Synthesize the final answer from the executed plan.
     plan_results = {s.id: {"step": s.description, "result": s.result} for s in state.plan}
     messages = [
         Message.system(SYNTH_PROMPT),
-        Message.user(f"Goal: {state.goal}\nExecuted plan: {json.dumps(plan_results, default=str)}"),
+        Message.user(
+            f"Question: {state.goal}\n"
+            f"Executed plan and results: {json.dumps(plan_results, default=str)[:12000]}"
+        ),
     ]
     with ctx.trace.span("planner:synthesize", "model", step="synthesize"):
-        resp = await synth_model.complete(messages)
+        resp = await model.complete(messages)
     ctx.trace.record_usage(resp.usage)
-    answer = resp.text or ""
 
     return AgentResult(
-        answer=answer,
+        answer=resp.text or "",
         steps=len(state.plan),
         usage=Usage(
             input_tokens=ctx.trace.input_tokens,
@@ -168,61 +168,15 @@ async def run(
     )
 
 
-# --- Deterministic scripts for offline runs / tests ----------------------------------------
-
-
-def scripted_planner(pipeline: str) -> FakeModel:
-    """Offline planner: plan 3 steps, then (seeing no deploy evidence) re-plan to add it, then done.
-
-    This mirrors real replanning: the initial plan gathers status/logs/DQ; on inspection the
-    planner realizes it can't attribute the cause without deployment history and adds that step.
-    """
-    def steps(*specs):
-        return json.dumps(
-            {"steps": [{"tool": t, "arguments": a, "rationale": r} for t, a, r in specs],
-             "done": False}
-        )
-
-    return FakeModel(
-        script=[
-            steps(
-                ("get_pipeline_status", {"pipeline": pipeline}, "confirm the failure"),
-                ("query_logs", {"pipeline": pipeline, "level": "ERROR"}, "find the error"),
-                ("check_data_quality", {"pipeline": pipeline}, "see which checks failed"),
-            ),
-            steps(
-                ("list_recent_deployments", {"pipeline": pipeline},
-                 "attribute the schema change to a deployment"),
-            ),
-            json.dumps({"steps": [], "done": True}),
-        ]
-    )
-
-
-def scripted_synth() -> FakeModel:
-    return FakeModel(
-        script=[
-            (
-                "Root cause: a schema mismatch on the `amount` column. The error log shows a "
-                "SchemaValidationError (expected DECIMAL, received STRING) and the data-quality "
-                "type check failed; deployment deploy-8842 changed `amount` to STRING upstream, "
-                "which is when orders_daily began writing 0 rows. Recommend rolling back "
-                "deploy-8842 and rerunning — a plain restart will not fix the upstream schema."
-            )
-        ]
-    )
-
-
 def main() -> None:
     import asyncio
 
-    from recipes._common import live_model, parse_recipe_args, print_result
+    from recipes._common import build_model, load_question, parse_recipe_args, print_qa_result
 
     ns = parse_recipe_args("Recipe 03 — planner–executor")
-    pipeline = ns.pipeline or DEFAULT_PIPELINE
-    model = live_model() if ns.live else None
-    result = asyncio.run(run(pipeline, model=model))
-    print_result("Recipe 03 — Planner–executor", result)
+    dataset, question = load_question(ns.uid, ns.subset)
+    result = asyncio.run(run(question, dataset, model=build_model()))
+    print_qa_result("Recipe 03 — Planner–executor", question, result)
 
 
 if __name__ == "__main__":

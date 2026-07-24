@@ -1,0 +1,27 @@
+name: closed-book-baseline
+description: >
+  Ask the model the question directly — one call, no tools, no documents. The dumbest thing that
+  could work, and the control the whole cookbook measures against. For OfficeQA it usually fails,
+  because the answers live in specific Treasury Bulletin tables no model has memorized.
+
+feedback:
+  mode: open-loop
+  mechanisms: []
+
+authority:
+  level: advisory
+  allowed_actions: []
+
+control:
+  mode: code-directed
+
+execution:
+  pattern: sequential
+
+topology:
+  pattern: none
+
+state:
+  durability: request-local
+  memory: none
+  source_of_truth: environmental

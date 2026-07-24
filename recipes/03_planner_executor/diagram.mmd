@@ -1,8 +1,8 @@
 flowchart TB
-    In([Incident: pipeline failed]) --> P{{Planner: emit JSON plan}}
-    P --> E[Execute steps in order]
+    Q([Treasury Bulletin question]) --> P{{Planner: emit JSON plan}}
+    P --> E[Execute steps via document tools]
     E --> Store[(Task state:<br/>plan + results)]
     Store --> I{Enough evidence?}
     I -->|no, re-plan| P
-    I -->|yes| S{{Synthesize diagnosis}}
-    S --> Out([Root-cause diagnosis])
+    I -->|yes| S{{Synthesize answer}}
+    S --> Out([Answer + FINAL_ANSWER])

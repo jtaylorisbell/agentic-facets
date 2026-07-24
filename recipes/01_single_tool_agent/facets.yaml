@@ -1,8 +1,9 @@
-name: single-tool-agent
+name: single-document-agent
 description: >
-  One agent, read-only tools, model-directed control. The model chooses which tool to call and
-  when to stop; code only bounds the loop (max_steps). Same problem as the deterministic
-  baseline, with the Control axis flipped from code-directed to model-directed.
+  One agent with read-only document tools (list/search/read/compute) scoped to a question's
+  source documents. Model-directed control: the model chooses which tool to call and when it can
+  answer; code only bounds the loop (max_steps). Same problem as the closed-book baseline, with
+  the Control axis flipped from code-directed to model-directed and document access added.
 
 feedback:
   mode: closed-loop
@@ -16,13 +17,12 @@ authority:
 control:
   mode: model-directed
   boundaries:
-    max_steps: 8
+    max_steps: 16
     allowed_tools:
-      - get_pipeline_status
-      - query_logs
-      - query_metrics
-      - check_data_quality
-      - list_recent_deployments
+      - list_source_documents
+      - search_document
+      - read_document
+      - compute
 
 execution:
   pattern: planner-executor

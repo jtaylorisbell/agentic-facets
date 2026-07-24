@@ -1,0 +1,9 @@
+recipe: 00_closed_book_baseline
+# OfficeQA questions to answer, by uid. The eval harness loads each from the dataset (question +
+# ground-truth answer) and scores the recipe's output with the official reward.py scorer.
+subset: pro
+uids:
+  - UID0030
+  - UID0121
+  - UID0056
+  - UID0184

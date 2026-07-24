@@ -1,10 +1,10 @@
 name: planner-executor
 description: >
-  A planner emits an explicit, structured plan (persisted to task state); code executes each
-  step; the planner then inspects results and re-plans, adding steps only when evidence is
-  insufficient. Separates planning from execution. Changes from the single agent: the plan
-  becomes a first-class, persisted artifact (State) rather than living implicitly in the message
-  history.
+  A planner emits an explicit, structured plan of document reads and computations (persisted to
+  task state); code executes each step via the document tools; the planner then inspects results
+  and re-plans, adding steps only when evidence is insufficient. Separates planning from
+  execution. Changes from the single agent: the plan becomes a first-class, persisted artifact
+  (State) rather than living implicitly in the message history.
 
 feedback:
   mode: closed-loop
@@ -18,7 +18,7 @@ authority:
 control:
   mode: model-directed
   boundaries:
-    max_steps: 12
+    max_steps: 16
 
 execution:
   pattern: planner-executor

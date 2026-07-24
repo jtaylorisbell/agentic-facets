@@ -1,31 +1,33 @@
 """Recipe 04 — Parallel investigation.
 
-                  ┌── Inspect Logs
-    Incident ─────┼── Inspect Metrics      ──> Synthesize ──> Diagnosis
-                  ├── Inspect Data Quality
-                  └── Inspect Deployments
+                  ┌── read document A ─┐
+    Question ─────┤   read document B  ├── Synthesize ── Answer
+                  └── read document C ─┘
 
-Same problem as manager–worker, changed along one axis:
+Changed from the single document agent along one axis:
 
-    Execution:  sequential delegation  ->  parallel fan-out / fan-in
+    Execution:  sequential reads  ->  parallel fan-out / fan-in
 
-The four investigations are **independent** — none needs another's output — so we run them
-concurrently with ``asyncio.gather`` instead of one after another, then fan in to a synthesizer.
+Some OfficeQA questions span several documents (e.g. "compare the 1953 and 1954 figures"). Reading
+those documents is **independent** — one does not need another's output — so we fan out one
+investigator per source document, run them concurrently with ``asyncio.gather``, then fan in to a
+synthesizer that combines their findings.
+
 Each investigator runs in its own :class:`ExecutionContext` with its own trace (so concurrent
 spans don't interleave under a shared object); the child traces are merged back into the parent
 with ``Trace.absorb`` after the join.
 
-The tradeoff this recipe teaches: parallel fan-out cuts **latency** (wall-clock ≈ the slowest
-branch, not the sum) but not **token cost** (every branch still runs). Use it when subtasks are
-independent and latency matters.
+The tradeoff this teaches: parallel fan-out cuts **latency** (wall-clock ≈ the slowest branch,
+not the sum) but not **token cost** (every branch still runs). Use it when subtasks are
+independent and latency matters. For a single-document question it degrades to one branch plus a
+synthesis — correct, but no faster than Recipe 01.
 
 FACETS profile:
     F=closed-loop  A=advisory  C=model-directed
     E=parallel  T=manager-worker  S=request-local
 
 Run it:
-    uv run python recipes/04_parallel_investigation/app.py           # offline, scripted
-    uv run python recipes/04_parallel_investigation/app.py --live     # live Databricks endpoint
+    uv run python recipes/04_parallel_investigation/app.py --uid UID0004
 """
 
 from __future__ import annotations
@@ -39,95 +41,73 @@ sys.path[:0] = [str(_ROOT), str(_ROOT / "src")]
 
 from facets.agents import Agent, AgentResult, Budget, ExecutionContext
 from facets.messages import Message
-from facets.models import FakeModel, ModelProvider, Usage, call
-from facets.tracing import Trace
-from tools import (
-    DEFAULT_PIPELINE,
-    check_data_quality,
-    list_recent_deployments,
-    query_logs,
-    query_metrics,
+from facets.models import Usage
+from facets.officeqa import (
+    FINAL_ANSWER_INSTRUCTION,
+    OfficeQADataset,
+    Question,
+    build_document_tools,
 )
+from facets.tracing import Trace
 
-SYNTH_PROMPT = """You are the lead incident investigator. You are given the independent findings
-of four parallel investigators (logs, metrics, data-quality, deployments). Synthesize them into a
-single root-cause diagnosis naming the specific column and the upstream change responsible.
-Advisory only — recommend remediation but take no action."""
+INVESTIGATOR_PROMPT = """You are extracting facts from ONE Treasury Bulletin document to help
+answer a question. Search and read {source_file} for the figures the question needs, and report
+what you find — the specific values, their rows, and their units. Do not try to compute the final
+answer; just report the raw facts from this document clearly. Be terse."""
 
-
-# Each investigator: (name, tools, system prompt). Independent — none depends on another.
-INVESTIGATORS = [
-    (
-        "log_investigator",
-        [query_logs],
-        "Inspect the error logs for the pipeline and report the key error line. Be terse.",
-    ),
-    (
-        "metrics_investigator",
-        [query_metrics],
-        "Inspect the pipeline metrics and report which regressed vs baseline. Be terse.",
-    ),
-    (
-        "data_quality_investigator",
-        [check_data_quality],
-        "Inspect the data-quality checks and report which failed and on which column. Be terse.",
-    ),
-    (
-        "deployment_investigator",
-        [list_recent_deployments],
-        "Inspect recent deployments and report the most suspicious one. Be terse.",
-    ),
-]
+SYNTH_PROMPT = f"""You are the lead analyst. Several investigators each read one document and
+reported the figures they found. Combine their findings to answer the question, doing any
+arithmetic yourself and being careful about units. {FINAL_ANSWER_INSTRUCTION}"""
 
 
-async def _run_investigator(
-    name: str, tools, prompt: str, pipeline: str, model: ModelProvider
+async def _investigate_document(
+    dataset: OfficeQADataset, source_file: str, question: Question, model
 ) -> tuple[str, AgentResult]:
-    """Run one investigator in its own context + trace, so it is safe to run concurrently."""
+    """Run one per-document investigator in its own context + trace (safe to run concurrently)."""
+    # Scope this investigator's tools to just its one document.
+    tools = build_document_tools(dataset, (source_file,))
     agent = Agent(
-        name=name, model=model, tools=tools, system_prompt=prompt, budget=Budget(max_steps=4)
+        name=f"reader::{source_file}",
+        model=model,
+        tools=tools,
+        system_prompt=INVESTIGATOR_PROMPT.format(source_file=source_file),
+        budget=Budget(max_steps=8),
     )
-    ctx = ExecutionContext(task_id=f"{name}-{pipeline}", trace=Trace())
-    goal = f"Investigate the '{pipeline}' pipeline failure within your specialty."
+    ctx = ExecutionContext(task_id=f"{question.uid}::{source_file}", trace=Trace())
+    goal = f"Question: {question.question}\nReport the relevant figures from {source_file}."
     result = await agent.run(goal, ctx)
-    return name, result
+    return source_file, result
 
 
-async def run(
-    pipeline: str = DEFAULT_PIPELINE, *, model: ModelProvider | None = None
-) -> AgentResult:
+async def run(question: Question, dataset: OfficeQADataset, *, model) -> AgentResult:
     parent = Trace()
+    docs = question.source_files or ()
 
-    # Fan out: launch all investigators concurrently.
-    scripts = scripted_investigators(pipeline)
-    tasks = [
-        _run_investigator(
-            name, tools, prompt, pipeline, model or scripts[name]
+    # Fan out: one investigator per source document, concurrently.
+    with parent.span("parallel:fan_out", "step", branches=len(docs)):
+        results = await asyncio.gather(
+            *(_investigate_document(dataset, doc, question, model) for doc in docs)
         )
-        for (name, tools, prompt) in INVESTIGATORS
-    ]
-    with parent.span("parallel:fan_out", "step", branches=len(tasks)):
-        results = await asyncio.gather(*tasks)
 
     # Fan in: merge each investigator's trace into the parent and collect findings.
     findings: dict[str, str] = {}
-    for name, result in results:
+    for source_file, result in results:
         parent.absorb(result.trace)
-        findings[name] = result.answer
+        findings[source_file] = result.answer
 
-    # Synthesize the merged findings into one diagnosis.
-    synth_model: ModelProvider = model or scripted_synth()
+    # Synthesize the merged findings into one answer.
+    findings_text = "\n\n".join(f"From {doc}:\n{text}" for doc, text in findings.items())
     messages = [
         Message.system(SYNTH_PROMPT),
-        Message.user("Findings:\n" + "\n".join(f"- {k}: {v}" for k, v in findings.items())),
+        Message.user(f"Question: {question.question}\n\nInvestigator findings:\n{findings_text}"),
     ]
     with parent.span("parallel:synthesize", "model", step="synthesize"):
-        resp = await synth_model.complete(messages)
+        resp = await model.complete(messages)
     parent.record_usage(resp.usage)
 
     return AgentResult(
         answer=resp.text or "",
-        steps=len(INVESTIGATORS) + 1,
+        steps=len(docs) + 1,
         usage=Usage(
             input_tokens=parent.input_tokens,
             output_tokens=parent.output_tokens,
@@ -138,61 +118,13 @@ async def run(
     )
 
 
-# --- Deterministic scripts for offline runs / tests ----------------------------------------
-
-
-def scripted_investigators(pipeline: str) -> dict[str, FakeModel]:
-    """One scripted model per investigator; each calls its tool then reports a terse finding."""
-    return {
-        "log_investigator": FakeModel(
-            script=[
-                [call("query_logs", pipeline=pipeline, level="ERROR")],
-                "SchemaValidationError on 'amount' (expected DECIMAL, got STRING).",
-            ]
-        ),
-        "metrics_investigator": FakeModel(
-            script=[
-                [call("query_metrics", pipeline=pipeline)],
-                "rows_written fell from 1.25M to 0; error_rate rose to 1.0.",
-            ]
-        ),
-        "data_quality_investigator": FakeModel(
-            script=[
-                [call("check_data_quality", pipeline=pipeline)],
-                "Failed: 'amount' type_match (expected DECIMAL, observed STRING).",
-            ]
-        ),
-        "deployment_investigator": FakeModel(
-            script=[
-                [call("list_recent_deployments", pipeline=pipeline)],
-                "deploy-8842 changed 'amount' from DECIMAL to STRING upstream.",
-            ]
-        ),
-    }
-
-
-def scripted_synth() -> FakeModel:
-    return FakeModel(
-        script=[
-            (
-                "Root cause: a schema mismatch on the `amount` column. The log and data-quality "
-                "investigators independently found a DECIMAL→STRING type failure on `amount`; the "
-                "metrics investigator shows rows_written collapsed to 0; the deployment "
-                "investigator traced the change to deploy-8842 upstream. Recommend rolling back "
-                "deploy-8842, then rerunning — a plain restart will not fix the upstream schema."
-            )
-        ]
-    )
-
-
 def main() -> None:
-    from recipes._common import live_model, parse_recipe_args, print_result
+    from recipes._common import build_model, load_question, parse_recipe_args, print_qa_result
 
     ns = parse_recipe_args("Recipe 04 — parallel investigation")
-    pipeline = ns.pipeline or DEFAULT_PIPELINE
-    model = live_model() if ns.live else None
-    result = asyncio.run(run(pipeline, model=model))
-    print_result("Recipe 04 — Parallel investigation", result)
+    dataset, question = load_question(ns.uid, ns.subset)
+    result = asyncio.run(run(question, dataset, model=build_model()))
+    print_qa_result("Recipe 04 — Parallel investigation", question, result)
 
 
 if __name__ == "__main__":

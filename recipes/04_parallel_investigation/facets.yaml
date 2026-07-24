@@ -1,8 +1,8 @@
 name: parallel-investigation
 description: >
-  Four independent investigators (logs, metrics, data-quality, deployments) run concurrently via
-  asyncio.gather, each in its own context and trace, then fan in to a synthesizer. Changes from
-  manager-worker along one axis: Execution from sequential delegation to parallel fan-out/fan-in.
+  One investigator per source document runs concurrently via asyncio.gather, each in its own
+  context and trace, then fans in to a synthesizer that combines their findings. Changes from the
+  single document agent along one axis: Execution from sequential reads to parallel fan-out/fan-in.
   Cuts latency (wall-clock is the slowest branch) but not token cost (every branch still runs).
 
 feedback:
@@ -17,7 +17,7 @@ authority:
 control:
   mode: model-directed
   boundaries:
-    max_steps: 4
+    max_steps: 8
 
 execution:
   pattern: parallel
