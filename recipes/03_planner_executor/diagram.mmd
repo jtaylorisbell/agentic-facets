@@ -1,0 +1,8 @@
+flowchart TB
+    In([Incident: pipeline failed]) --> P{{Planner: emit JSON plan}}
+    P --> E[Execute steps in order]
+    E --> Store[(Task state:<br/>plan + results)]
+    Store --> I{Enough evidence?}
+    I -->|no, re-plan| P
+    I -->|yes| S{{Synthesize diagnosis}}
+    S --> Out([Root-cause diagnosis])

@@ -24,28 +24,34 @@ def _load_runner():
     return module
 
 
-async def test_all_recipes_pass_and_cost_is_monotonic():
+async def test_all_recipes_pass_and_costs_are_sane():
     runner = _load_runner()
     reports = await runner.evaluate_all()
 
     by_recipe = {r.recipe: r for r in reports}
-    # The three shipped recipes are discovered.
+    # All six shipped recipes are discovered by the harness.
     assert set(by_recipe) == {
         "00_deterministic_baseline",
         "01_single_tool_agent",
+        "02_routed_workflow",
+        "03_planner_executor",
+        "04_parallel_investigation",
         "05_manager_worker",
     }
 
-    # All succeed at the task with correct tool use.
+    # Every recipe succeeds at the task with correct tool use.
     for r in reports:
         assert r.score("task_success") == 1.0, r.recipe
         assert r.score("tool_correctness") == 1.0, r.recipe
 
-    # Cost escalates with complexity — the framework's thesis, as a regression guard.
-    calls = [
-        by_recipe["00_deterministic_baseline"].model_calls,
-        by_recipe["01_single_tool_agent"].model_calls,
-        by_recipe["05_manager_worker"].model_calls,
-    ]
-    assert calls == sorted(calls)
-    assert calls[0] == 0 < calls[1] < calls[2]
+    # The deterministic baseline is free; every agent recipe costs model calls.
+    assert by_recipe["00_deterministic_baseline"].model_calls == 0
+    for name, r in by_recipe.items():
+        if name != "00_deterministic_baseline":
+            assert r.model_calls > 0, name
+
+    # Manager-worker (sequential delegation) costs strictly more than the single agent.
+    assert (
+        by_recipe["05_manager_worker"].model_calls
+        > by_recipe["01_single_tool_agent"].model_calls
+    )

@@ -58,6 +58,9 @@ nav:
       - Overview: recipes/index.md
       - 00 · Deterministic Baseline: recipes/00-deterministic-baseline.md
       - 01 · Single Tool Agent: recipes/01-single-tool-agent.md
+      - 02 · Routed Workflow: recipes/02-routed-workflow.md
+      - 03 · Planner–Executor: recipes/03-planner-executor.md
+      - 04 · Parallel Investigation: recipes/04-parallel-investigation.md
       - 05 · Manager–Worker: recipes/05-manager-worker.md
   - Evaluation: evaluation.md
   - Production Checklist: production-checklist.md

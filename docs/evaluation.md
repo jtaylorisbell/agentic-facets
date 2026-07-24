@@ -21,12 +21,23 @@ its task, so it works as a CI gate).
 |---|---|---|---|---|---|
 | 00 · Deterministic baseline | 1.00 | 1.00 | **0** | 0 | 0 |
 | 01 · Single tool agent | 1.00 | 1.00 | **5** | ~1.5k | 5 |
+| 02 · Routed workflow | 1.00 | 1.00 | **5** | ~1.2k | 4 |
+| 03 · Planner–executor | 1.00 | 1.00 | **4** | ~1.9k | 4 |
+| 04 · Parallel investigation | 1.00 | 1.00 | **9** | ~1.1k | 5 |
 | 05 · Manager–worker | 1.00 | 1.00 | **13** | ~1.9k | 5 |
 
-All three solve the incident. Cost escalates with architectural complexity. **That contrast is
-the lesson:** pick the lowest rung on the [escalation ladder](choosing-a-pattern.md#the-escalation-ladder)
-that clears your reliability bar — the fanciest architecture that works is rarely the one you
-want.
+Every architecture solves the incident. What differs is *how* — one classification call plus a
+scoped specialist (02), a plan/execute/replan loop (03), four concurrent branches plus a
+synthesis (04), or sequential delegation to a manager's workers (05). **That contrast is the
+lesson:** pick the lowest rung on the
+[escalation ladder](choosing-a-pattern.md#the-escalation-ladder) that clears your reliability bar
+— the fanciest architecture that works is rarely the one you want.
+
+!!! note "Reading the numbers"
+    Model-call count isn't a quality ranking — it reflects each architecture's *shape*. The
+    planner–executor looks cheap here because the offline script converges fast; parallel
+    investigation trades tokens for wall-clock latency (invisible in a deterministic run). The
+    point is that the axes have *costs*, and the table makes them visible.
 
 *(Token counts use a deterministic offline estimate; absolute numbers shift under a live model,
 but the ordering is the point.)*

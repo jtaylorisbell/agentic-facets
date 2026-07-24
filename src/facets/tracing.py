@@ -66,6 +66,18 @@ class Trace:
         self.output_tokens += usage.output_tokens
         self.model_calls += usage.model_calls
 
+    def absorb(self, child: Trace) -> None:
+        """Fold a child trace into this one — spans and rolled-up usage.
+
+        Used to merge the traces of agents that ran concurrently (each with its own trace, so
+        their spans don't interleave under a shared lock) back into a single parent trace. Child
+        spans keep their own recorded timings.
+        """
+        self.spans.extend(child.spans)
+        self.input_tokens += child.input_tokens
+        self.output_tokens += child.output_tokens
+        self.model_calls += child.model_calls
+
     @property
     def total_tokens(self) -> int:
         return self.input_tokens + self.output_tokens

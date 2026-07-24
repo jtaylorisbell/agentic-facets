@@ -1,0 +1,12 @@
+recipe: 04_parallel_investigation
+case:
+  id: orders_daily_schema_break
+  goal: The 'orders_daily' pipeline has failed. Investigate in parallel and report the root cause.
+  pipeline: orders_daily
+  expected_root_cause: schema mismatch
+  # All four investigators run; each exercises its own tool.
+  expected_tools:
+    - query_logs
+    - query_metrics
+    - check_data_quality
+    - list_recent_deployments

@@ -1,0 +1,12 @@
+flowchart LR
+    In([Incident: pipeline failed]) --> C{{Router: classify}}
+    C -->|data_quality| DQ[Data-Quality Specialist]
+    C -->|infrastructure| IN[Infrastructure Specialist]
+    C -->|code_failure| CF[Code-Failure Specialist]
+    DQ --> Out([Root-cause diagnosis])
+    IN --> Out
+    CF --> Out
+
+    DQ -.-> dqt[check_data_quality, query_logs, list_recent_deployments]
+    IN -.-> int[get_pipeline_status, query_metrics]
+    CF -.-> cft[query_logs, list_recent_deployments]

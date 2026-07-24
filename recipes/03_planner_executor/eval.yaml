@@ -1,0 +1,12 @@
+recipe: 03_planner_executor
+case:
+  id: orders_daily_schema_break
+  goal: Investigate why the 'orders_daily' pipeline failed and name the root cause.
+  pipeline: orders_daily
+  expected_root_cause: schema mismatch
+  # The plan gathers status/logs/DQ, then re-plans to add deployment history.
+  expected_tools:
+    - get_pipeline_status
+    - query_logs
+    - check_data_quality
+    - list_recent_deployments

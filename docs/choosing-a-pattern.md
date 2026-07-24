@@ -50,6 +50,9 @@ and moves exactly one axis at a time:
 |---|---|---|
 | [00 Deterministic baseline](recipes/00-deterministic-baseline.md) | — (start) | `C=code-directed · T=none` |
 | [01 Single tool agent](recipes/01-single-tool-agent.md) | **Control** → model-directed | `C=model-directed · T=single-agent` |
+| [02 Routed workflow](recipes/02-routed-workflow.md) | **Execution** → router | `E=router · T=router-specialists` |
+| [03 Planner–executor](recipes/03-planner-executor.md) | **State** → explicit plan | `E=planner-executor · S=durable-task` |
+| [04 Parallel investigation](recipes/04-parallel-investigation.md) | **Execution** → parallel | `E=parallel · T=manager-worker` |
 | [05 Manager–worker](recipes/05-manager-worker.md) | **Topology** → manager-worker | `C=model-directed · T=manager-worker` |
 
 The [evaluation](evaluation.md) shows all three solve the incident — at escalating cost. That's

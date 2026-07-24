@@ -1,0 +1,32 @@
+name: routed-workflow
+description: >
+  A classifier categorizes the incident (one model call), then code dispatches to a predefined
+  specialist agent for that domain. The classification is model-assisted but the control flow is
+  developer-written — a router is usually still a workflow, not a full multi-agent system.
+  Changes from the single agent: Execution to router, Topology to router-specialists, and Control
+  back to code-directed at the top level.
+
+feedback:
+  mode: closed-loop
+  mechanisms:
+    - environmental-verification
+
+authority:
+  level: advisory
+  allowed_actions: []
+
+control:
+  mode: code-directed
+  boundaries:
+    max_steps: 6
+
+execution:
+  pattern: router
+
+topology:
+  pattern: router-specialists
+
+state:
+  durability: request-local
+  memory: context-only
+  source_of_truth: environmental

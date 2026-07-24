@@ -42,6 +42,28 @@ def test_tool_calls_ordered_and_filtered():
     assert trace.tool_calls == ["query_logs", "query_metrics"]
 
 
+def test_absorb_merges_spans_and_usage():
+    parent = Trace(clock=make_clock([0, 1]))
+    parent.record_usage(Usage(10, 2, 1))
+    with parent.span("parent:decide", "model"):
+        pass
+
+    child = Trace(clock=make_clock([0, 1, 1, 2]))
+    child.record_usage(Usage(5, 3, 1))
+    with child.span("child:decide", "model"):
+        pass
+    with child.span("child:query_logs", "tool", tool="query_logs"):
+        pass
+
+    parent.absorb(child)
+    assert parent.model_calls == 2
+    assert parent.input_tokens == 15
+    assert parent.output_tokens == 5
+    # Child spans are now visible in the parent, including the child's tool call.
+    assert parent.tool_calls == ["query_logs"]
+    assert len(parent.spans) == 3
+
+
 def test_summary_shape():
     trace = Trace(clock=make_clock([0, 1]))
     trace.record_usage(Usage(4, 6, 1))

@@ -45,7 +45,9 @@ def print_result(title: str, result: AgentResult) -> None:
 
     console = Console()
     console.rule(f"[bold]{title}")
-    console.print(result.answer)
+    # markup=False: recipe answers are free text and may contain "[...]" (e.g. a router prefix);
+    # don't let Rich interpret those as style tags.
+    console.print(result.answer, markup=False)
     console.rule("[dim]Trace")
     summary = result.trace.summary()
     summary["stopped_reason"] = result.stopped_reason

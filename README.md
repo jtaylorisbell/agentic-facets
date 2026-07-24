@@ -40,10 +40,16 @@ pipeline has failed; investigate it and recommend a fix* — and implements it r
 
 ```mermaid
 flowchart LR
-    R0["00 · Deterministic baseline<br/>C=code-directed · T=none"]
-    R1["01 · Single tool agent<br/>C=model-directed · T=single-agent"]
-    R5["05 · Manager–worker<br/>C=model-directed · T=manager-worker"]
+    R0["00 · Deterministic<br/>baseline"]
+    R1["01 · Single<br/>tool agent"]
+    R2["02 · Routed<br/>workflow"]
+    R3["03 · Planner–<br/>executor"]
+    R4["04 · Parallel<br/>investigation"]
+    R5["05 · Manager–<br/>worker"]
     R0 -->|"Control:<br/>code → model"| R1
+    R1 -->|"Execution/Topology"| R2
+    R1 -->|"Execution/State"| R3
+    R5 -->|"Execution:<br/>seq → parallel"| R4
     R1 -->|"Topology:<br/>single → manager"| R5
 ```
 
@@ -69,12 +75,12 @@ same time* — because those describe different axes.
 ```bash
 uv sync
 
-# Run the same incident three ways — offline, deterministic, no API key needed:
+# Run the same incident several ways — offline, deterministic, no API key needed:
 uv run python recipes/00_deterministic_baseline/app.py
 uv run python recipes/01_single_tool_agent/app.py
 uv run python recipes/05_manager_worker/app.py
 
-# Compare them side by side:
+# Compare all recipes side by side:
 uv run python evals/run_evals.py
 ```
 
@@ -86,12 +92,15 @@ uv run python evals/run_evals.py
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━┩
 │ 00_deterministic_baseline │    1.00 │        1.00 │     0 │      0 │     0 │
 │ 01_single_tool_agent      │    1.00 │        1.00 │     5 │   1502 │     5 │
+│ 02_routed_workflow        │    1.00 │        1.00 │     5 │   1217 │     4 │
+│ 03_planner_executor       │    1.00 │        1.00 │     4 │   1914 │     4 │
+│ 04_parallel_investigation │    1.00 │        1.00 │     9 │   1064 │     5 │
 │ 05_manager_worker         │    1.00 │        1.00 │    13 │   1946 │     5 │
 └───────────────────────────┴─────────┴─────────────┴───────┴────────┴───────┘
 ```
 
-All three solve the incident. Cost escalates with complexity. **That's the lesson:** use the
-simplest architecture that clears your reliability bar.
+Every architecture solves the incident — what differs is *how*, and what it costs. **That's the
+lesson:** use the simplest architecture that clears your reliability bar.
 
 ### Running against a real model
 
@@ -111,7 +120,7 @@ src/facets/     Framework-neutral runtime: Agent loop, Tool/ModelProvider protoc
                 FakeModel + DatabricksModel, TaskState, ApprovalPolicy, Trace, Evaluator,
                 and the typed FACETS manifest loader.
 tools/          The incident scenario — deterministic fake tools over a seeded fixture.
-recipes/        Self-contained, runnable recipes (00, 01, 05), one FACETS axis apart.
+recipes/        Self-contained, runnable recipes (00–05), one FACETS axis apart.
 evals/          The comparative evaluation harness.
 docs/           The MkDocs site (the teaching experience).
 schema/         JSON Schema for facets.yaml.
@@ -143,10 +152,11 @@ Only move down a rung when the one above genuinely can't do the job.
 
 ## Status
 
-**Release 0.1** — the framework, the runtime primitives, Recipes 00/01/05, the comparative
-evaluation, and the docs site. The rest of the recipe ladder (routing, planner–executor,
-parallel investigation, handoffs, maker–checker, durable execution, approval-gated actions, and
-a composed production system) and the deeper Databricks production track are on the roadmap. See
+**Release 0.1** — the framework, the runtime primitives, Recipes 00–05 (deterministic baseline,
+single tool agent, routed workflow, planner–executor, parallel investigation, manager–worker),
+the comparative evaluation, and the docs site. The rest of the recipe ladder (handoffs,
+maker–checker, durable execution, approval-gated actions, and a composed production system) and
+the deeper Databricks production track are on the roadmap. See
 [`docs/recipes/index.md`](docs/recipes/index.md#roadmap).
 
 ## License
