@@ -15,8 +15,8 @@ FACETS profile:
     E=sequential  T=none  S=request-local
 
 Run it:
-    uv run python recipes/00_deterministic_baseline/app.py
-    uv run python recipes/00_deterministic_baseline/app.py --uid UID0030
+    uv run python recipes/00_closed_book_baseline/app.py
+    uv run python recipes/00_closed_book_baseline/app.py --uid UID0030
 """
 
 from __future__ import annotations

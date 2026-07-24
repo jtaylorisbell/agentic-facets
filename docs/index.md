@@ -24,14 +24,18 @@ FACETS gives those dimensions names. Classify any agentic system by six independ
 
 ## The cookbook is pattern-first
 
-We take **one realistic problem** — *a production data pipeline has failed; investigate it and
-recommend a fix* — and build it several ways, **changing one FACETS axis at a time**. That
-isolation is the teaching device: when only Control changes from Recipe 00 to Recipe 01, any
-difference in the results table is attributable to giving the model the wheel.
+We take **one real problem** — *answer a hard, document-grounded question from the
+[OfficeQA benchmark](https://github.com/databricks/officeqa)* (a corpus of U.S. Treasury
+Bulletins) — and build it several ways, **changing one FACETS axis at a time**. That isolation is
+the teaching device: when only Control changes from Recipe 00 to Recipe 01, any difference in the
+results table is attributable to giving the model document access and the wheel.
+
+The questions are real, the documents are real, the model is real, and answers are graded by
+OfficeQA's own scorer. There is no offline fake path — a wrong answer is a real wrong answer.
 
 ```mermaid
 flowchart LR
-    R0[00 · Deterministic<br/>baseline] -->|Control:<br/>code → model| R1[01 · Single<br/>tool agent]
+    R0[00 · Closed-book<br/>baseline] -->|Control:<br/>code → model| R1[01 · Single<br/>document agent]
     R1 -->|Topology:<br/>single → manager| R5[05 · Manager–<br/>worker]
 ```
 
@@ -43,9 +47,10 @@ them so the tradeoffs are visible, not asserted.
 
 ```bash
 uv sync
+cp .env.example .env    # set DATABRICKS_HOST, DATABRICKS_TOKEN, FACETS_MODEL, HF_TOKEN
 
-# Run the same incident three ways (offline, deterministic — no API key needed):
-uv run python recipes/00_deterministic_baseline/app.py
+# Answer the same question several ways:
+uv run python recipes/00_closed_book_baseline/app.py
 uv run python recipes/01_single_tool_agent/app.py
 uv run python recipes/05_manager_worker/app.py
 
@@ -53,9 +58,9 @@ uv run python recipes/05_manager_worker/app.py
 uv run python evals/run_evals.py
 ```
 
-To drive the agents with a real model, point them at a Databricks foundation-model endpoint
-(see [`.env.example`](https://github.com/jtaylorisbell/agentic-facets/blob/main/.env.example))
-and add `--live`.
+Running the recipes needs credentials: a **Databricks** token for the model (called through the
+Unity AI Gateway) and a **Hugging Face** token with access to the gated OfficeQA dataset. See
+[`.env.example`](https://github.com/jtaylorisbell/agentic-facets/blob/main/.env.example).
 
 ## Design principle
 

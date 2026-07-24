@@ -154,7 +154,7 @@ This is what makes FACETS *adoptable* — the goal is for other teams to publish
 and say "here is the FACETS profile of our architecture."
 
 ```yaml
-name: single-tool-agent
+name: single-document-agent
 feedback:
   mode: closed-loop
   mechanisms: [environmental-verification]
@@ -163,7 +163,7 @@ authority:
 control:
   mode: model-directed
   boundaries:
-    max_steps: 8
+    max_steps: 16
 execution:
   pattern: planner-executor
 topology:
@@ -181,4 +181,12 @@ from facets.manifest import load_manifest
 m = load_manifest("recipes/01_single_tool_agent/facets.yaml")
 print(m.summary_line())
 # F=closed-loop A=advisory C=model-directed E=planner-executor T=single-agent S=request-local
+```
+
+A **deep-research / document-QA system** — exactly the shape of this cookbook's OfficeQA
+recipes — profiles as:
+
+```text
+F=source+environmental · A=read-only · C=model-directed · E=planner-executor · T=single-agent
+(or manager-worker) · S=request-local
 ```

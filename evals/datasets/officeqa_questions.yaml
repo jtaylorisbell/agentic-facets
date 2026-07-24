@@ -1,0 +1,22 @@
+# A small, curated set of OfficeQA question uids used by the recipes' eval.yaml files.
+#
+# The questions themselves (text + ground-truth answers) are NOT stored here — they live in the
+# gated OfficeQA dataset and are fetched at runtime by facets.officeqa.OfficeQADataset. This file
+# just records which uids we evaluate against and why, so the choice is documented in one place.
+
+subset: pro
+
+# "Lookup / single-figure" questions: the answer is a value read from one table in one document.
+# The single-document recipes (00/01/02/03/05) evaluate against these.
+lookup:
+  - UID0030   # Sep 1990 bulletin, page 5 — a count from one table
+  - UID0121   # Jan 1980 ownership survey — categories over a $200M threshold
+  - UID0056   # personal savings, 1950–1990 — the year of a maximum
+  - UID0184   # Treasury market quotations, Jan 30 1948 — a single quoted value
+
+# Multi-document questions: the answer combines figures from more than one document/year.
+# The parallel-investigation recipe (04) evaluates against these.
+multi_document:
+  - UID0025   # absolute difference in spending across two years
+  - UID0062   # change in an Army expenditure figure across two documents
+  - UID0065   # absolute difference in a growth rate across two documents

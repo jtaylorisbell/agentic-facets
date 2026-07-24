@@ -2,71 +2,74 @@
 
 FACETS only earns its keep if the differences between architectures are **measured**, not
 asserted. The cookbook's thesis — *"we built the same agent several ways; here's what changed"* —
-is backed by a comparison table over one shared incident.
+is backed by running the **same OfficeQA questions** through every recipe and scoring the answers
+with OfficeQA's own reward function.
+
+Because the model and data are real, results vary run to run, and a wrong answer is a real wrong
+answer — not a scripted one.
 
 ## Run it
 
 ```bash
 uv run python evals/run_evals.py
+uv run python evals/run_evals.py --uids UID0030,UID0121      # override the question set
+uv run python evals/run_evals.py --recipes 00_closed_book_baseline,01_single_tool_agent
 ```
 
-The harness discovers every recipe that ships an `eval.yaml`, runs its `run()` entrypoint with
-the offline scripted model, scores the result, and prints one row per recipe. Because the offline
-runs are deterministic, it doubles as a regression test (and exits non-zero if any recipe fails
-its task, so it works as a CI gate).
+The harness discovers every recipe that ships an `eval.yaml`, runs its `run(question, dataset,
+model=...)` entrypoint on each listed question with a real Databricks model, scores each answer
+with [`reward.py`](https://github.com/databricks/officeqa) (exact + numeric-tolerance matching),
+and prints per-recipe **answer accuracy** and **average cost**.
 
-## The result
+## What you see
 
-| Recipe | Task success | Tool correctness | Model calls | Total tokens | Steps |
-|---|---|---|---|---|---|
-| 00 · Deterministic baseline | 1.00 | 1.00 | **0** | 0 | 0 |
-| 01 · Single tool agent | 1.00 | 1.00 | **5** | ~1.5k | 5 |
-| 02 · Routed workflow | 1.00 | 1.00 | **5** | ~1.2k | 4 |
-| 03 · Planner–executor | 1.00 | 1.00 | **4** | ~1.9k | 4 |
-| 04 · Parallel investigation | 1.00 | 1.00 | **9** | ~1.1k | 5 |
-| 05 · Manager–worker | 1.00 | 1.00 | **13** | ~1.9k | 5 |
+A representative single-question run (`UID0121`: "how many investor-type categories held more than
+\$200 million as of the January 1980 ownership survey?", ground truth **2**):
 
-Every architecture solves the incident. What differs is *how* — one classification call plus a
-scoped specialist (02), a plan/execute/replan loop (03), four concurrent branches plus a
-synthesis (04), or sequential delegation to a manager's workers (05). **That contrast is the
-lesson:** pick the lowest rung on the
-[escalation ladder](choosing-a-pattern.md#the-escalation-ladder) that clears your reliability bar
-— the fanciest architecture that works is rarely the one you want.
+| Recipe | Answer | Correct? | Model calls |
+|---|---|---|---|
+| 00 · Closed-book baseline | 6 | ✗ | 1 |
+| 01 · Single document agent | 2 | ✓ | 5 |
+| 02 · Routed workflow | 2 | ✓ | 6 |
+| 05 · Manager–worker | 6 | ✗ | 10 |
 
-!!! note "Reading the numbers"
-    Model-call count isn't a quality ranking — it reflects each architecture's *shape*. The
-    planner–executor looks cheap here because the offline script converges fast; parallel
-    investigation trades tokens for wall-clock latency (invisible in a deterministic run). The
-    point is that the axes have *costs*, and the table makes them visible.
+Read this carefully, because it is the whole point:
 
-*(Token counts use a deterministic offline estimate; absolute numbers shift under a live model,
-but the ordering is the point.)*
+- **The closed-book baseline is wrong.** No model has this 1980 table memorized. That failure is
+  what justifies giving the model document tools at all.
+- **Document access fixes it.** The single agent reads the table and gets it right, for a handful
+  of model calls.
+- **More machinery is not more capability.** The manager–worker system spent *more* model calls
+  and still got it wrong — the coordination overhead bought nothing here. Multi-agent earns its
+  keep when one context genuinely can't hold the problem, not by default.
+
+!!! note "Results vary"
+    These are real model runs, so exact answers and counts shift between runs. The **pattern** —
+    baseline fails, document access helps, extra agents don't automatically help — is the durable
+    lesson, not any single cell.
 
 ## Metrics
 
-The framework calls for measuring:
-
-- **Task success** — did it reach the correct outcome? (Here: did it name the root cause and
-  finish rather than truncate?)
-- **Tool-use correctness** — did it call the tools the task needed?
-- **Model-call count / token cost / latency** — what did the architecture cost?
+- **Answer accuracy** — did the final `<FINAL_ANSWER>` match ground truth (exact, or within
+  numeric tolerance) per OfficeQA's `reward.py`?
+- **Model-call count / token cost** — what did the architecture cost to get there?
 - Later, as recipes add authority and durability: **unsupported claims, policy violations, and
   human-intervention rate**.
 
 ## Scorers
 
-Scorers are plain callables (`(case, result) -> Score`), so scenario-specific ones compose with
-the built-ins. The two shipped scorers live in
-[`facets.evaluation`](https://github.com/jtaylorisbell/agentic-facets/blob/main/src/facets/evaluation.py):
+The OfficeQA scorer wraps the official reward function as a FACETS `Scorer`:
 
 ```python
-from facets.evaluation import Evaluator, task_success_scorer, tool_correctness_scorer
+from facets.officeqa import answer_correctness_scorer
+from facets.evaluation import EvalCase
 
-evaluator = Evaluator([task_success_scorer(), tool_correctness_scorer()])
-report = evaluator.evaluate(case, recipe="01_single_tool_agent", result=result)
-print(report.as_row())
+scorer = answer_correctness_scorer(tolerance=0.01)
+case = EvalCase(id=q.uid, goal=q.question, metadata={"answer": q.answer})
+score = scorer(case, result)   # 1.0 if the answer matches ground truth, else 0.0
 ```
 
-Every run carries a [`Trace`](https://github.com/jtaylorisbell/agentic-facets/blob/main/src/facets/tracing.py)
-with rolled-up model calls, tokens, latency, and the ordered list of tool calls — which is what
-the scorers and the table read from.
+The contract: the recipe's answer must contain the value inside `<FINAL_ANSWER>…</FINAL_ANSWER>`.
+Every run also carries a [`Trace`](https://github.com/jtaylorisbell/agentic-facets/blob/main/src/facets/tracing.py)
+with rolled-up model calls, tokens, and the ordered list of tool calls, which is what the cost
+columns read from.

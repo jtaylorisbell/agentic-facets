@@ -1,10 +1,12 @@
-# Recipe 03 · Planner–Executor
+# Recipe 03 · Planner–executor
 
 > **FACETS:** `F=closed-loop · A=advisory · C=model-directed · E=planner-executor · T=single-agent · S=durable-task`
 
-Make the **plan an explicit artifact**: a planner emits a structured list of steps up front, code
-executes them, then the planner inspects the results and re-plans if the evidence is
-insufficient.
+Same OfficeQA question as [Recipe 01](01-single-tool-agent.md) — but this time we make the **plan
+an explicit artifact**. The system decides which documents to read and what to compute up front,
+executes those steps, then inspects the results and re-plans if the evidence is insufficient.
+
+## What changed?
 
 ```diff
  Execution:
@@ -18,32 +20,32 @@ insufficient.
 
 ```mermaid
 flowchart TB
-    In([Incident: pipeline failed]) --> P{{Planner: emit JSON plan}}
-    P --> E[Execute steps in order]
+    Q([Treasury Bulletin question]) --> P{{Planner: emit JSON plan}}
+    P --> E[Execute steps via document tools]
     E --> Store[(Task state:<br/>plan + results)]
     Store --> I{Enough evidence?}
     I -->|no, re-plan| P
-    I -->|yes| S{{Synthesize diagnosis}}
-    S --> Out([Root-cause diagnosis])
+    I -->|yes| S{{Synthesize answer}}
+    S --> Out([Answer + FINAL_ANSWER])
 ```
 
 ## Run it
 
 ```bash
-uv run python recipes/03_planner_executor/app.py          # offline (scripted)
-uv run python recipes/03_planner_executor/app.py --live   # live Databricks endpoint
+uv run python recipes/03_planner_executor/app.py
+uv run python recipes/03_planner_executor/app.py --uid UID0056
 ```
 
 ## What it teaches
 
-- **The plan is durable and inspectable.** Recipe 01 already had a planner–executor *shape*
-  implicitly; here the plan is a first-class `TaskState.plan` with checkpoints around each step —
-  the precondition for durable, resumable execution ([Recipe 08](index.md#roadmap), later).
+- **The plan is a first-class persisted artifact.** Recipe 01 already had a planner–executor
+  *shape* implicitly; here the plan is an explicit `TaskState.plan` with checkpoints around each
+  step — the precondition for durable, resumable execution.
 - **Avoid over-planning.** The planner is prompted to request only the steps it still needs; the
-  re-plan loop gathers evidence incrementally rather than front-loading every tool.
-- **Degrade gracefully.** Malformed plan JSON is tolerated (falls back to "done"); a bounded
-  re-plan count prevents non-termination.
+  re-plan loop gathers evidence incrementally rather than front-loading every read.
+- **Degrade gracefully.** Malformed plan JSON is tolerated (`_parse_plan` falls back to `done`),
+  and a bounded `MAX_REPLANS` count prevents non-termination.
 
 ## Source
 
-[`recipes/03_planner_executor/`](https://github.com/jtaylorisbell/agentic-facets/tree/main/recipes/03_planner_executor).
+[`recipes/03_planner_executor/`](https://github.com/jtaylorisbell/agentic-facets/tree/main/recipes/03_planner_executor)

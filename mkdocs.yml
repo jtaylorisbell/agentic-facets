@@ -56,8 +56,8 @@ nav:
   - Choosing a Pattern: choosing-a-pattern.md
   - Recipes:
       - Overview: recipes/index.md
-      - 00 · Deterministic Baseline: recipes/00-deterministic-baseline.md
-      - 01 · Single Tool Agent: recipes/01-single-tool-agent.md
+      - 00 · Closed-book Baseline: recipes/00-closed-book-baseline.md
+      - 01 · Single Document Agent: recipes/01-single-tool-agent.md
       - 02 · Routed Workflow: recipes/02-routed-workflow.md
       - 03 · Planner–Executor: recipes/03-planner-executor.md
       - 04 · Parallel Investigation: recipes/04-parallel-investigation.md

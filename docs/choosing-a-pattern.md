@@ -32,31 +32,33 @@ Can the system make consequential changes?
 Autonomy is **earned**. Only move down a rung when the rung above genuinely can't do the job:
 
 ```text
-Single LLM call
-    ↓ only when insufficient
-Deterministic workflow           →  Recipe 00
-    ↓ only when runtime decisions are necessary
+Single LLM call                  →  Recipe 00 (closed-book baseline)
+    ↓ only when it needs to consult the environment
 Single tool-using agent          →  Recipe 01
+    ↓ only when runtime routing / planning helps
+Workflow (router, planner)       →  Recipes 02, 03
     ↓ only when context or specialization requires it
-Multi-agent system               →  Recipe 05
+Multi-agent system               →  Recipes 04, 05
 ```
 
-## Worked example: the incident investigator
+## Worked example: the document-QA agent
 
-The cookbook applies the card to one problem — *a data pipeline failed; find the root cause* —
-and moves exactly one axis at a time:
+The cookbook applies the card to one problem — *answer a hard, document-grounded OfficeQA
+question* — and moves exactly one axis at a time:
 
 | Recipe | Axis changed | Resulting profile (abbrev.) |
 |---|---|---|
-| [00 Deterministic baseline](recipes/00-deterministic-baseline.md) | — (start) | `C=code-directed · T=none` |
-| [01 Single tool agent](recipes/01-single-tool-agent.md) | **Control** → model-directed | `C=model-directed · T=single-agent` |
+| [00 Closed-book baseline](recipes/00-closed-book-baseline.md) | — (start) | `C=code-directed · T=none` |
+| [01 Single document agent](recipes/01-single-tool-agent.md) | **Control** → model-directed | `C=model-directed · T=single-agent` |
 | [02 Routed workflow](recipes/02-routed-workflow.md) | **Execution** → router | `E=router · T=router-specialists` |
 | [03 Planner–executor](recipes/03-planner-executor.md) | **State** → explicit plan | `E=planner-executor · S=durable-task` |
 | [04 Parallel investigation](recipes/04-parallel-investigation.md) | **Execution** → parallel | `E=parallel · T=manager-worker` |
 | [05 Manager–worker](recipes/05-manager-worker.md) | **Topology** → manager-worker | `C=model-directed · T=manager-worker` |
 
-The [evaluation](evaluation.md) shows all three solve the incident — at escalating cost. That's
-the lesson: pick the lowest rung that clears your reliability bar, not the fanciest.
+The [evaluation](evaluation.md) runs the same questions through each — the closed-book baseline
+mostly fails, document access fixes that, and the fancier architectures don't automatically do
+better. That's the lesson: pick the lowest rung that clears your reliability bar, not the
+fanciest.
 
 ## Common traps
 

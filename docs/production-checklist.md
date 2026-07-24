@@ -49,8 +49,9 @@ things that keep it alive under load and scrutiny. Walk the FACETS axes and ask,
 
 ## Where this cookbook is today
 
-Release 0.1 ships the framework, the runtime primitives, and Recipes 00 / 01 / 05 with offline,
-deterministic evaluation. The production concerns above map onto later recipes:
+The cookbook ships the framework, the runtime primitives, and Recipes 00–05 answering real
+OfficeQA questions with a real model, scored by the official reward function. The production
+concerns above map onto later recipes:
 
 | Concern | Recipe (roadmap) |
 |---|---|
@@ -59,11 +60,16 @@ deterministic evaluation. The production concerns above map onto later recipes:
 | Approval-gated actions, audit trails, compensations | 09 |
 | Composed production system | 10 |
 
+One production concern is already visible in the recipes: **retrieval**. The recipes use *oracle
+retrieval* (each question's gold documents are handed to the agent) so the axes under study stay
+isolated. A production document-QA system adds a real retrieval tool over the full corpus — a
+Feedback/Execution concern, not a change to any recipe's topology.
+
 ## Databricks production track
 
 The runtime is framework-neutral by design. A Databricks implementation provides an
 enterprise-oriented path without making the framework vendor-specific — MLflow for tracing and
 evaluation, Unity Catalog functions for governed tools, Lakebase for durable task state, Delta
-for history, and Databricks Apps for the UI. Release 0.1 wires the model layer to Databricks
-foundation-model endpoints (the OpenAI-compatible serving surface); see
+for history, and Databricks Apps for the UI. Today the model layer already runs on Databricks:
+the `DatabricksModel` provider calls foundation models through the Unity AI Gateway. See
 [`infrastructure/databricks/`](https://github.com/jtaylorisbell/agentic-facets/tree/main/infrastructure/databricks).
