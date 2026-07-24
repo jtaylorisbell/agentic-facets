@@ -147,23 +147,26 @@ def _coerce(entry: ModelResponse | list[ToolCall] | str) -> ModelResponse:
 
 
 # --------------------------------------------------------------------------------------------
-# DatabricksModel — real endpoint via the OpenAI-compatible surface.
+# DatabricksModel — real model via the Unity AI Gateway (OpenAI-compatible surface).
 # --------------------------------------------------------------------------------------------
 
 
 class DatabricksModel:
-    """Talks to a Databricks foundation-model serving endpoint.
+    """Talks to a Databricks model through the Unity AI Gateway.
 
-    Databricks exposes an OpenAI-compatible API, so this is a thin adapter over the ``openai``
-    async client pointed at ``{host}/serving-endpoints``. The ``model`` is the *serving
-    endpoint name* (e.g. ``databricks-claude-sonnet-4-6`` or ``databricks-gpt-5``).
+    The gateway exposes an OpenAI-compatible API, so this is a thin adapter over the ``openai``
+    async client pointed at ``{host}/ai-gateway/mlflow/v1``. The ``model`` is a Unity Catalog
+    model-service name (e.g. ``system.ai.claude-sonnet-5`` or ``system.ai.gpt-5``).
 
     Credentials are read from the environment by default:
 
     * ``DATABRICKS_HOST``  — workspace URL, e.g. ``https://<workspace>.cloud.databricks.com``
-    * ``DATABRICKS_TOKEN`` — a token with *Can Query* on the endpoint
-    * ``FACETS_MODEL``     — the serving-endpoint name (overridable via ``model=``)
+    * ``DATABRICKS_TOKEN`` — a Databricks token authorized for the gateway
+    * ``FACETS_MODEL``     — the model-service name (overridable via ``model=``)
     """
+
+    #: The Unity AI Gateway path appended to the workspace host.
+    GATEWAY_PATH = "/ai-gateway/mlflow/v1"
 
     def __init__(
         self,
@@ -171,12 +174,16 @@ class DatabricksModel:
         *,
         host: str | None = None,
         token: str | None = None,
-        temperature: float = 0.0,
+        temperature: float | None = None,
+        max_tokens: int | None = 2048,
     ):
         host = host or os.environ.get("DATABRICKS_HOST")
         token = token or os.environ.get("DATABRICKS_TOKEN")
-        self.model = model or os.environ.get("FACETS_MODEL", "databricks-claude-sonnet-4-6")
+        self.model = model or os.environ.get("FACETS_MODEL", "system.ai.claude-sonnet-5")
+        # temperature is opt-in: several gateway models (e.g. Anthropic) reject it outright, so
+        # we only send it when a caller explicitly asks for one.
         self.temperature = temperature
+        self.max_tokens = max_tokens
         if not host or not token:
             raise RuntimeError(
                 "DatabricksModel needs DATABRICKS_HOST and DATABRICKS_TOKEN "
@@ -187,7 +194,7 @@ class DatabricksModel:
 
         self._client = AsyncOpenAI(
             api_key=token,
-            base_url=f"{host.rstrip('/')}/serving-endpoints",
+            base_url=f"{host.rstrip('/')}{self.GATEWAY_PATH}",
         )
 
     async def complete(
@@ -199,13 +206,18 @@ class DatabricksModel:
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": [_to_openai_message(m) for m in messages],
-            "temperature": options.get("temperature", self.temperature),
         }
+        temperature = options.get("temperature", self.temperature)
+        if temperature is not None:
+            payload["temperature"] = temperature
+        max_tokens = options.get("max_tokens", self.max_tokens)
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
         if tools:
             payload["tools"] = [t.to_openai() for t in tools]
             payload["tool_choice"] = options.get("tool_choice", "auto")
 
-        completion = await self._client.chat.completions.create(**payload)
+        completion = await self._create_with_fallback(payload)
         choice = completion.choices[0].message
         tool_calls = [
             ToolCall(
@@ -221,6 +233,33 @@ class DatabricksModel:
             model_calls=1,
         )
         return ModelResponse(text=choice.content, tool_calls=tool_calls, usage=usage)
+
+    async def _create_with_fallback(self, payload: dict[str, Any]) -> Any:
+        """Call the gateway, dropping any parameter it explicitly rejects, then retrying.
+
+        Gateway model families disagree on which optional parameters they accept — Anthropic
+        models, for example, reject ``temperature``. Rather than hard-code a per-model matrix,
+        we optimistically send the parameters and strip whichever one the API names in a
+        ``does not support the X parameter`` error. Bounded to the optional keys so a genuine
+        request error still surfaces.
+        """
+        from openai import BadRequestError
+
+        removable = ["temperature", "max_tokens", "tool_choice"]
+        for _ in range(len(removable) + 1):
+            try:
+                return await self._client.chat.completions.create(**payload)
+            except BadRequestError as exc:
+                message = str(exc)
+                dropped = next(
+                    (k for k in removable if k in payload and f"the {k} parameter" in message),
+                    None,
+                )
+                if dropped is None:
+                    raise
+                payload.pop(dropped, None)
+        # Should be unreachable: the loop above either returns or raises.
+        return await self._client.chat.completions.create(**payload)
 
 
 def _to_openai_message(m: Message) -> dict[str, Any]:
