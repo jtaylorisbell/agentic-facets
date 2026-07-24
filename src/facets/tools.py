@@ -85,7 +85,7 @@ class _FunctionTool:
     async def execute(self, arguments: dict[str, Any], context: ExecutionContext) -> ToolResult:
         call_id = arguments.pop("__call_id__", self._spec.name)
         try:
-            kwargs = dict(arguments)
+            kwargs = _coerce_arguments(self._fn, dict(arguments))
             if _wants_context(self._fn):
                 kwargs["context"] = context
             result = self._fn(**kwargs)
@@ -103,6 +103,39 @@ class _FunctionTool:
 
 def _wants_context(fn: Callable[..., Any]) -> bool:
     return "context" in inspect.signature(fn).parameters
+
+
+def _coerce_arguments(fn: Callable[..., Any], arguments: dict[str, Any]) -> dict[str, Any]:
+    """Coerce tool arguments to their annotated types.
+
+    Models calling tools through the OpenAI-compatible surface sometimes send numbers as strings
+    (``"start_line": "128"``) or booleans as strings. Rather than make every tool defensive, we
+    coerce here, against the function's own annotations. Coercion is best-effort: if a value
+    cannot be converted it is passed through unchanged so the tool can decide what to do.
+    """
+    sig = inspect.signature(fn)
+    coerced = dict(arguments)
+    for pname, param in sig.parameters.items():
+        if pname not in coerced:
+            continue
+        annotation = param.annotation
+        value = coerced[pname]
+        if annotation is int and isinstance(value, (str, float)):
+            try:
+                # Accept "128" and "128.0"/128.0 alike (models are inconsistent here).
+                coerced[pname] = int(float(value))
+            except (ValueError, TypeError):
+                pass
+        elif annotation is float and isinstance(value, (str, int)):
+            try:
+                coerced[pname] = float(value)
+            except (ValueError, TypeError):
+                pass
+        elif annotation is bool and isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in ("true", "false"):
+                coerced[pname] = lowered == "true"
+    return coerced
 
 
 def _build_parameters(fn: Callable[..., Any]) -> dict[str, Any]:

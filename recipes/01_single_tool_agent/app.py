@@ -1,23 +1,24 @@
-"""Recipe 01 — Tool-using single agent.
+"""Recipe 01 — Tool-using single agent (document QA).
 
-    Observe -> Choose Tool -> Inspect Result -> Continue or Finish
+    Observe question -> choose a document tool -> inspect result -> continue or answer
 
-Same problem as Recipe 00, one axis changed:
+The problem: answer a hard, document-grounded question from the OfficeQA benchmark (a real U.S.
+Treasury Bulletin corpus). The answer is a specific number that lives in a table inside a long
+document — the agent has to find the right table, read it, and often do exact arithmetic.
 
-    Control:  code-directed  ->  model-directed
-
-The developer no longer writes the investigation graph. A single agent is given the read-only
-tools and a goal, and the *model* decides which tool to call next, when it has enough evidence,
-and how to summarize — bounded by ``max_steps`` so a confused model degrades to a truncated
-answer instead of looping forever.
+One agent is given the document tools (list / search / read / compute) scoped to the question's
+source documents, and the *model* decides which tool to call next and when it can answer. This is
+the baseline agent: model-directed control, a single context, read-only tools. Recipe 00 (the
+closed-book baseline) shows what happens with no tools at all; the later recipes change one
+FACETS axis at a time from here.
 
 FACETS profile:
     F=closed-loop  A=advisory  C=model-directed
     E=planner-executor  T=single-agent  S=request-local
 
 Run it:
-    uv run python recipes/01_single_tool_agent/app.py            # offline, scripted FakeModel
-    uv run python recipes/01_single_tool_agent/app.py --live     # live Databricks endpoint
+    uv run python recipes/01_single_tool_agent/app.py            # default question (UID0001)
+    uv run python recipes/01_single_tool_agent/app.py --uid UID0003
 """
 
 from __future__ import annotations
@@ -29,65 +30,53 @@ _ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(_ROOT), str(_ROOT / "src")]
 
 from facets.agents import Agent, AgentResult, Budget, ExecutionContext
-from facets.models import FakeModel, ModelProvider, call
-from tools import DEFAULT_PIPELINE, read_only_tools
+from facets.officeqa import (
+    FINAL_ANSWER_INSTRUCTION,
+    OfficeQADataset,
+    Question,
+    build_document_tools,
+)
+from facets.officeqa.data import OfficeQADataset as _DS  # noqa: F401 (re-export convenience)
 
-SYSTEM_PROMPT = """You are a data-pipeline incident investigator.
-Investigate the failure using the available tools. Inspect logs, metrics, deployments, and
-data-quality checks as needed. When you have enough evidence, stop calling tools and reply with
-a concise root-cause diagnosis naming the specific column and the upstream change responsible.
-Do not take any remediating action — you are advisory only."""
+SYSTEM_PROMPT = f"""You are a meticulous research analyst answering a question from the U.S.
+Treasury Bulletin. The answer is a specific value found inside the provided documents.
 
+Work methodically:
+1. Call list_source_documents to see which documents are in scope.
+2. Use search_document to locate the relevant table or figure (documents are long).
+3. Use read_document to read the exact rows you need.
+4. Use compute for any arithmetic — do not do sums or percentages in your head.
 
-def scripted_model(pipeline: str) -> FakeModel:
-    """A deterministic investigation plan for offline runs and tests.
-
-    This is what a competent model *would* do: check status, read the error logs, confirm with
-    data-quality, tie it to the recent deployment, then conclude. It mirrors the real
-    tool-choosing loop without a network call.
-    """
-    return FakeModel(
-        script=[
-            [call("get_pipeline_status", pipeline=pipeline)],
-            [call("query_logs", pipeline=pipeline, level="ERROR")],
-            [call("check_data_quality", pipeline=pipeline)],
-            [call("list_recent_deployments", pipeline=pipeline)],
-            (
-                "Root cause: a schema mismatch on the `amount` column. Upstream deployment "
-                "deploy-8842 changed `amount` from DECIMAL to STRING, so orders_daily failed "
-                "schema validation and wrote 0 rows. Recommend rolling back deploy-8842 (do not "
-                "simply restart the job — the upstream schema is still wrong)."
-            ),
-        ]
-    )
+Read carefully: these tables have footnotes, revised figures, and unit headers (e.g. "in
+millions"). Match the units the question asks for. {FINAL_ANSWER_INSTRUCTION}"""
 
 
-async def run(
-    pipeline: str = DEFAULT_PIPELINE, *, model: ModelProvider | None = None
-) -> AgentResult:
-    model = model or scripted_model(pipeline)
-    agent = Agent(
-        name="investigator",
+def build_agent(dataset: OfficeQADataset, question: Question, model) -> Agent:
+    tools = build_document_tools(dataset, question.source_files)
+    return Agent(
+        name="analyst",
         model=model,
-        tools=read_only_tools(),
+        tools=tools,
         system_prompt=SYSTEM_PROMPT,
-        budget=Budget(max_steps=8),
+        budget=Budget(max_steps=16),
     )
-    ctx = ExecutionContext(task_id=f"incident-{pipeline}")
-    goal = f"The '{pipeline}' pipeline has failed. Investigate and report the root cause."
-    return await agent.run(goal, ctx)
+
+
+async def run(question: Question, dataset: OfficeQADataset, *, model) -> AgentResult:
+    agent = build_agent(dataset, question, model)
+    ctx = ExecutionContext(task_id=f"officeqa-{question.uid}")
+    return await agent.run(question.question, ctx)
 
 
 def main() -> None:
     import asyncio
 
-    from recipes._common import live_model, parse_recipe_args, print_result
+    from recipes._common import build_model, load_question, parse_recipe_args, print_qa_result
 
-    ns = parse_recipe_args("Recipe 01 — single tool-using agent")
-    pipeline = ns.pipeline or DEFAULT_PIPELINE
-    model = live_model() if ns.live else scripted_model(pipeline)
-    result = asyncio.run(run(pipeline, model=model))
-    print_result("Recipe 01 — Single tool-using agent", result)
+    ns = parse_recipe_args("Recipe 01 — single document agent")
+    dataset, question = load_question(ns.uid, ns.subset)
+    result = asyncio.run(run(question, dataset, model=build_model()))
+    print_qa_result("Recipe 01 — Single document agent", question, result)
 
 
 if __name__ == "__main__":

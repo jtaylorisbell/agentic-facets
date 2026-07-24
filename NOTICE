@@ -1,0 +1,13 @@
+Agentic FACETS
+Copyright 2026 Taylor Isbell
+
+This product includes software developed as part of the OfficeQA benchmark by Databricks
+(https://github.com/databricks/officeqa).
+
+- src/facets/officeqa/reward.py is vendored verbatim from OfficeQA (reward.py) and is licensed
+  under the Apache License, Version 2.0.
+
+The OfficeQA *dataset* (Treasury Bulletin corpus and question sets), fetched at runtime from
+https://huggingface.co/datasets/databricks/officeqa, is licensed separately under
+CC-BY-SA-4.0 and is NOT redistributed in this repository. Users download it themselves via an
+authenticated Hugging Face token after accepting the dataset terms.

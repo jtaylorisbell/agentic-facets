@@ -175,8 +175,11 @@ class DatabricksModel:
         host: str | None = None,
         token: str | None = None,
         temperature: float | None = None,
-        max_tokens: int | None = 2048,
+        max_tokens: int | None = 8192,
     ):
+        from facets.config import load_env
+
+        load_env()  # pick up .env at the repo root if present
         host = host or os.environ.get("DATABRICKS_HOST")
         token = token or os.environ.get("DATABRICKS_TOKEN")
         self.model = model or os.environ.get("FACETS_MODEL", "system.ai.claude-sonnet-5")
@@ -186,8 +189,8 @@ class DatabricksModel:
         self.max_tokens = max_tokens
         if not host or not token:
             raise RuntimeError(
-                "DatabricksModel needs DATABRICKS_HOST and DATABRICKS_TOKEN "
-                "(set them in the environment or pass host=/token=)."
+                "DatabricksModel needs DATABRICKS_HOST and DATABRICKS_TOKEN. "
+                "Copy .env.example to .env and fill them in, or pass host=/token=."
             )
         # Imported lazily so the offline path never requires the openai package to be wired up.
         from openai import AsyncOpenAI
@@ -232,7 +235,7 @@ class DatabricksModel:
             output_tokens=getattr(completion.usage, "completion_tokens", 0) or 0,
             model_calls=1,
         )
-        return ModelResponse(text=choice.content, tool_calls=tool_calls, usage=usage)
+        return ModelResponse(text=_content_text(choice.content), tool_calls=tool_calls, usage=usage)
 
     async def _create_with_fallback(self, payload: dict[str, Any]) -> Any:
         """Call the gateway, dropping any parameter it explicitly rejects, then retrying.
@@ -260,6 +263,27 @@ class DatabricksModel:
                 payload.pop(dropped, None)
         # Should be unreachable: the loop above either returns or raises.
         return await self._client.chat.completions.create(**payload)
+
+
+def _content_text(content: Any) -> str | None:
+    """Flatten a chat message's ``content`` into plain text.
+
+    Most OpenAI-compatible responses put a string here, but some gateway models (e.g. Anthropic
+    with extended thinking) return a list of content blocks like
+    ``[{"type": "reasoning", ...}, {"type": "text", "text": "..."}]``. We keep only the visible
+    text — the reasoning blocks are internal — and join them.
+    """
+    if content is None or isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, dict) and isinstance(block.get("text"), str):
+                parts.append(block["text"])
+            elif isinstance(block, str):
+                parts.append(block)
+        return "".join(parts) or None
+    return str(content)
 
 
 def _to_openai_message(m: Message) -> dict[str, Any]:
