@@ -1,0 +1,11 @@
+recipe: 05_manager_worker
+case:
+  id: orders_daily_schema_break
+  goal: The 'orders_daily' pipeline has failed. Coordinate an investigation and report the root cause.
+  pipeline: orders_daily
+  expected_root_cause: schema mismatch
+  # The manager delegates; the underlying investigation tools still get exercised by workers.
+  expected_tools:
+    - query_logs
+    - check_data_quality
+    - list_recent_deployments

@@ -1,0 +1,8 @@
+flowchart LR
+    In([Incident: pipeline failed]) --> S[get_pipeline_status]
+    S --> L[query_logs]
+    L --> M[query_metrics]
+    M --> D[check_data_quality]
+    D --> P[list_recent_deployments]
+    P --> R[Summarize by fixed rules]
+    R --> Out([Diagnosis])

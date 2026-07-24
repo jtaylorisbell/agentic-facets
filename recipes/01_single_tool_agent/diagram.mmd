@@ -1,0 +1,15 @@
+flowchart LR
+    In([Incident: pipeline failed]) --> A{{Agent: decide next step}}
+    A -->|choose tool| T[Tool call]
+    T -->|result| A
+    A -->|enough evidence| Out([Root-cause diagnosis])
+
+    subgraph tools [Read-only tools]
+        direction TB
+        t1[get_pipeline_status]
+        t2[query_logs]
+        t3[query_metrics]
+        t4[check_data_quality]
+        t5[list_recent_deployments]
+    end
+    T -.-> tools

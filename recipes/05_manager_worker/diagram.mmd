@@ -1,0 +1,16 @@
+flowchart TB
+    In([Incident: pipeline failed]) --> M{{Incident Manager}}
+    M -->|delegate| LW[Log Investigator]
+    M -->|delegate| MW[Metrics Investigator]
+    M -->|delegate| DW[Data-Quality Investigator]
+    M -->|delegate| PW[Deployment Investigator]
+    LW -->|finding| M
+    MW -->|finding| M
+    DW -->|finding| M
+    PW -->|finding| M
+    M -->|synthesize| Out([Root-cause diagnosis])
+
+    LW -.-> lt[query_logs, get_pipeline_status]
+    MW -.-> mt[query_metrics]
+    DW -.-> dt[check_data_quality]
+    PW -.-> pt[list_recent_deployments]

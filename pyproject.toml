@@ -59,3 +59,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Recipe apps deliberately set up sys.path before importing facets/tools so each recipe is
+# independently runnable; E402 (import not at top) is expected there.
+"recipes/**/app.py" = ["E402"]
+"evals/run_evals.py" = ["E402"]

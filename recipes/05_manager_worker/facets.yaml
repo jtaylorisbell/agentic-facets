@@ -1,0 +1,31 @@
+name: manager-worker
+description: >
+  A manager agent owns the incident and delegates focused subtasks to four specialist worker
+  agents (log, metrics, data-quality, deployment), each in an isolated context with scoped
+  tools. Same problem and same control mode as the single agent, with the Topology axis changed
+  from single-agent to manager-worker. The manager stays responsible (contrast handoff).
+
+feedback:
+  mode: closed-loop
+  mechanisms:
+    - environmental-verification
+
+authority:
+  level: advisory
+  allowed_actions: []
+
+control:
+  mode: model-directed
+  boundaries:
+    max_steps: 10
+
+execution:
+  pattern: planner-executor
+
+topology:
+  pattern: manager-worker
+
+state:
+  durability: request-local
+  memory: context-only
+  source_of_truth: environmental
