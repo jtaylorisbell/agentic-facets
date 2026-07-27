@@ -1,7 +1,12 @@
 recipe: 02_routed_workflow
 subset: pro
+# The shared "lookup" set — see evals/datasets/officeqa_questions.yaml for why these eight.
 uids:
   - UID0030
   - UID0121
   - UID0056
   - UID0184
+  - UID0001
+  - UID0031
+  - UID0035
+  - UID0058
