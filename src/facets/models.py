@@ -158,10 +158,15 @@ class DatabricksModel:
     async client pointed at ``{host}/ai-gateway/mlflow/v1``. The ``model`` is a Unity Catalog
     model-service name (e.g. ``system.ai.claude-sonnet-5`` or ``system.ai.gpt-5``).
 
+    **Authentication is OAuth by default** (see :mod:`facets.databricks_auth`), resolved from a
+    ``databricks auth login`` profile and *refreshed automatically* so a long eval sweep does not
+    die when a token expires. A static ``DATABRICKS_TOKEN`` is honored only as a CI fallback.
+
     Credentials are read from the environment by default:
 
+    * ``DATABRICKS_CONFIG_PROFILE`` — a CLI profile to authenticate via OAuth (preferred)
     * ``DATABRICKS_HOST``  — workspace URL, e.g. ``https://<workspace>.cloud.databricks.com``
-    * ``DATABRICKS_TOKEN`` — a Databricks token authorized for the gateway
+    * ``DATABRICKS_TOKEN`` — a static bearer token (CI fallback; discouraged for interactive use)
     * ``FACETS_MODEL``     — the model-service name (overridable via ``model=``)
     """
 
@@ -174,16 +179,15 @@ class DatabricksModel:
         *,
         host: str | None = None,
         token: str | None = None,
+        profile: str | None = None,
+        prefer_oauth: bool = True,
         temperature: float | None = None,
         max_tokens: int | None = 8192,
         max_retries: int = 4,
         retry_base_delay: float = 1.0,
     ):
-        from facets.config import load_env
+        from facets.databricks_auth import resolve_auth
 
-        load_env()  # pick up .env at the repo root if present
-        host = host or os.environ.get("DATABRICKS_HOST")
-        token = token or os.environ.get("DATABRICKS_TOKEN")
         self.model = model or os.environ.get("FACETS_MODEL", "system.ai.claude-sonnet-5")
         # temperature is opt-in: several gateway models (e.g. Anthropic) reject it outright, so
         # we only send it when a caller explicitly asks for one.
@@ -192,18 +196,27 @@ class DatabricksModel:
         # Rate-limit resilience for concurrent runs (e.g. the eval harness).
         self.max_retries = max_retries
         self.retry_base_delay = retry_base_delay
-        if not host or not token:
-            raise RuntimeError(
-                "DatabricksModel needs DATABRICKS_HOST and DATABRICKS_TOKEN. "
-                "Copy .env.example to .env and fill them in, or pass host=/token=."
-            )
+
+        # Resolve host + a (possibly refreshing) token provider. OAuth is preferred; a raised
+        # MissingCredential here explains exactly how to authenticate.
+        self._auth = resolve_auth(
+            host=host, token=token, profile=profile, prefer_oauth=prefer_oauth
+        )
+        self.auth_method = self._auth.method
+
         # Imported lazily so the offline path never requires the openai package to be wired up.
         from openai import AsyncOpenAI
 
+        # Seed the client with an initial key; ``_refresh_auth`` updates it (OAuth refresh) before
+        # every request so a long-running sweep never sends an expired token.
         self._client = AsyncOpenAI(
-            api_key=token,
-            base_url=f"{host.rstrip('/')}{self.GATEWAY_PATH}",
+            api_key=self._auth.token_provider(),
+            base_url=f"{self._auth.host}{self.GATEWAY_PATH}",
         )
+
+    def _refresh_auth(self) -> None:
+        """Point the client at a fresh bearer token (a no-op cost for the static path)."""
+        self._client.api_key = self._auth.token_provider()
 
     async def complete(
         self,
@@ -283,6 +296,9 @@ class DatabricksModel:
         last_exc: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
+                # Refresh the bearer before each attempt so OAuth token expiry mid-sweep is
+                # transparent (no-op for a static token).
+                self._refresh_auth()
                 return await self._client.chat.completions.create(**payload)
             except (RateLimitError, APIConnectionError) as exc:
                 last_exc = exc
