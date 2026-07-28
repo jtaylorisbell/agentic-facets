@@ -183,8 +183,9 @@ class DatabricksModel:
         prefer_oauth: bool = True,
         temperature: float | None = None,
         max_tokens: int | None = 8192,
-        max_retries: int = 4,
+        max_retries: int = 8,
         retry_base_delay: float = 1.0,
+        retry_max_delay: float = 60.0,
     ):
         from facets.databricks_auth import resolve_auth
 
@@ -196,6 +197,7 @@ class DatabricksModel:
         # Rate-limit resilience for concurrent runs (e.g. the eval harness).
         self.max_retries = max_retries
         self.retry_base_delay = retry_base_delay
+        self.retry_max_delay = retry_max_delay
 
         # Resolve host + a (possibly refreshing) token provider. OAuth is preferred; a raised
         # MissingCredential here explains exactly how to authenticate.
@@ -283,16 +285,25 @@ class DatabricksModel:
         return await self._create_with_retry(payload)
 
     async def _create_with_retry(self, payload: dict[str, Any]) -> Any:
-        """Call the gateway, retrying on rate limits with exponential backoff.
+        """Call the gateway, retrying on rate limits and transient errors.
 
-        Running several recipes concurrently (the eval harness) can trip the gateway's rate
-        limit. Rather than fail the run, back off and retry a few times. Backoff is deterministic
-        (1s, 2s, 4s, 8s) — no jitter — which is fine at the small concurrency we use.
+        Running several recipes concurrently (the eval harness) reliably trips the gateway's rate
+        limit. The pilot showed why the naive version was not enough: deterministic backoff
+        (1,2,4,8s) makes every concurrent caller retry in lockstep, so they re-collide and a whole
+        cell can exhaust its retries and get mis-scored as a *wrong answer*. This version:
+
+        * honors the server's ``Retry-After`` header when present (the gateway tells us how long
+          to wait — respect it instead of guessing),
+        * otherwise backs off exponentially with **full jitter** so concurrent callers spread out
+          rather than stampede,
+        * caps each sleep at ``retry_max_delay`` and retries more times (``max_retries``),
+        * also retries transient 5xx (``InternalServerError``), not just 429/connection errors.
         """
         import asyncio
 
-        from openai import APIConnectionError, RateLimitError
+        from openai import APIConnectionError, InternalServerError, RateLimitError
 
+        retriable = (RateLimitError, APIConnectionError, InternalServerError)
         last_exc: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
@@ -300,13 +311,61 @@ class DatabricksModel:
                 # transparent (no-op for a static token).
                 self._refresh_auth()
                 return await self._client.chat.completions.create(**payload)
-            except (RateLimitError, APIConnectionError) as exc:
+            except retriable as exc:
                 last_exc = exc
                 if attempt == self.max_retries:
                     break
-                await asyncio.sleep(self.retry_base_delay * (2**attempt))
+                await asyncio.sleep(self._retry_delay(attempt, exc))
         assert last_exc is not None
         raise last_exc
+
+    def _retry_delay(self, attempt: int, exc: Exception) -> float:
+        """Seconds to wait before the next retry: server's Retry-After, else jittered backoff."""
+        import random
+
+        retry_after = _retry_after_seconds(exc)
+        if retry_after is not None:
+            # Respect the server, plus a little jitter so callers released together re-spread.
+            return min(retry_after, self.retry_max_delay) + random.uniform(0, 1)
+        # Full jitter (AWS-style): sleep is uniform in [0, base * 2**attempt], capped.
+        ceiling = min(self.retry_base_delay * (2**attempt), self.retry_max_delay)
+        return random.uniform(0, ceiling)
+
+
+def _retry_after_seconds(exc: Exception) -> float | None:
+    """Extract a ``Retry-After`` wait (in seconds) from an openai API error, if it carries one.
+
+    The gateway returns 429s with a ``Retry-After`` header — either a number of seconds or an
+    HTTP date. openai exceptions expose the underlying ``response`` (an httpx.Response). We read
+    the header defensively: any parsing failure just means "fall back to jittered backoff".
+    """
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None)
+    if not headers:
+        return None
+    raw = headers.get("retry-after") or headers.get("Retry-After")
+    if not raw:
+        return None
+    try:
+        return max(0.0, float(raw))  # numeric form: seconds
+    except (TypeError, ValueError):
+        pass
+    try:  # HTTP-date form: compute seconds until that instant
+        from email.utils import parsedate_to_datetime
+
+        when = parsedate_to_datetime(raw)
+        now = _utcnow()
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=now.tzinfo)
+        return max(0.0, (when - now).total_seconds())
+    except (TypeError, ValueError):
+        return None
+
+
+def _utcnow():
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC)
 
 
 def _content_text(content: Any) -> str | None:

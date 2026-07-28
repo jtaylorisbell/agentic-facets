@@ -75,6 +75,53 @@ def test_summarize_groups_into_cells():
     assert grid.cell("01_single_tool_agent", WEAK).n == 0
 
 
+def _errored_run(recipe: str, model: str, uid: str) -> RecipeRun:
+    """A run that failed on infrastructure (rate limit) — must not count as a wrong answer."""
+    return RecipeRun(
+        recipe=recipe,
+        model=model,
+        uid=uid,
+        correct=0.0,
+        model_calls=0,
+        total_tokens=0,
+        steps=0,
+        stopped_reason="error: RateLimitError",
+    )
+
+
+def test_infra_errors_excluded_from_accuracy():
+    # 2 correct, 2 wrong, plus 2 rate-limit failures. Accuracy must be 2/4 = 0.50, NOT 2/6.
+    runs = _runs("00_closed_book_baseline", STRONG, [1, 1, 0, 0]) + [
+        _errored_run("00_closed_book_baseline", STRONG, "E1"),
+        _errored_run("00_closed_book_baseline", STRONG, "E2"),
+    ]
+    grid = summarize(runs, recipes=RECIPES, models=[STRONG])
+    cell = grid.cell("00_closed_book_baseline", STRONG)
+    assert cell.n == 6  # attempted
+    assert cell.n_scored == 4  # scorable
+    assert cell.errors == 2
+    assert cell.accuracy == 0.5  # over scored runs only
+
+
+def test_cell_with_only_errors_is_not_zero_accuracy():
+    # A cell where every run failed on infra must report no scorable data, not a fake 0.00.
+    runs = [_errored_run("04_parallel_investigation", STRONG, u) for u in ("A", "B", "C")]
+    grid = summarize(runs, recipes=RECIPES, models=[STRONG])
+    cell = grid.cell("04_parallel_investigation", STRONG)
+    assert cell.n_scored == 0
+    assert cell.errors == 3
+    assert cell.accuracy == 0.0  # sentinel, but n_scored==0 tells the renderer to print n/a
+
+
+def test_uids_reflect_only_scored_runs():
+    # The comparability guard must key off the questions actually scored, not the errored ones.
+    runs = _runs("00_closed_book_baseline", STRONG, [1, 0]) + [
+        _errored_run("00_closed_book_baseline", STRONG, "E1"),
+    ]
+    grid = summarize(runs, recipes=RECIPES, models=[STRONG])
+    assert grid.cell("00_closed_book_baseline", STRONG).uids == frozenset({"Q1", "Q2"})
+
+
 def test_analyze_needs_two_models():
     grid = _grid_from(
         {

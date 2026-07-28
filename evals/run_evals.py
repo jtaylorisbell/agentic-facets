@@ -61,6 +61,12 @@ TOOL_PREFIX = "01_"
 # --------------------------------------------------------------------------------------------
 
 
+#: A run whose stopped_reason starts with this marker failed on infrastructure (rate limit,
+#: connection), not on the question. Such runs are NOT wrong answers — scoring them 0.0 would
+#: bias a cell's accuracy downward — so accuracy is computed over successful runs only.
+ERROR_PREFIX = "error:"
+
+
 @dataclass
 class RecipeRun:
     recipe: str
@@ -72,10 +78,19 @@ class RecipeRun:
     steps: int
     stopped_reason: str
 
+    @property
+    def is_error(self) -> bool:
+        return self.stopped_reason.startswith(ERROR_PREFIX)
+
 
 @dataclass
 class Cell:
-    """All runs for one (recipe, model) pair — one square of the grid."""
+    """All runs for one (recipe, model) pair — one square of the grid.
+
+    Accuracy is over *successful* runs only: an infra failure (rate limit, dropped connection) is
+    not a wrong answer, and counting it as one would understate a model that simply got throttled.
+    ``errors`` reports how many runs failed so the reader can judge a cell's reliability.
+    """
 
     recipe: str
     model: str
@@ -83,23 +98,41 @@ class Cell:
 
     @property
     def n(self) -> int:
+        """Total attempted runs (including infra errors)."""
         return len(self.runs)
 
     @property
+    def scored(self) -> list[RecipeRun]:
+        """Runs that completed and produced an answer to score."""
+        return [r for r in self.runs if not r.is_error]
+
+    @property
+    def n_scored(self) -> int:
+        return len(self.scored)
+
+    @property
+    def errors(self) -> int:
+        return sum(1 for r in self.runs if r.is_error)
+
+    @property
     def accuracy(self) -> float:
-        return sum(r.correct for r in self.runs) / self.n if self.n else 0.0
+        scored = self.scored
+        return sum(r.correct for r in scored) / len(scored) if scored else 0.0
 
     @property
     def avg_model_calls(self) -> float:
-        return sum(r.model_calls for r in self.runs) / self.n if self.n else 0.0
+        scored = self.scored
+        return sum(r.model_calls for r in scored) / len(scored) if scored else 0.0
 
     @property
     def avg_tokens(self) -> float:
-        return sum(r.total_tokens for r in self.runs) / self.n if self.n else 0.0
+        scored = self.scored
+        return sum(r.total_tokens for r in scored) / len(scored) if scored else 0.0
 
     @property
     def uids(self) -> frozenset[str]:
-        return frozenset(r.uid for r in self.runs)
+        """Uids of successfully scored runs — the set the accuracy is actually over."""
+        return frozenset(r.uid for r in self.scored)
 
 
 @dataclass
@@ -300,9 +333,9 @@ async def evaluate_grid(
                     stopped_reason=f"error: {type(exc).__name__}",
                 )
         done += 1
+        outcome = run.stopped_reason if run.is_error else f"{run.correct:.0f}"
         print(
-            f"  [{done}/{total}] {recipe} · {short_model(model_name)} · {uid} "
-            f"-> {run.correct:.0f}",
+            f"  [{done}/{total}] {recipe} · {short_model(model_name)} · {uid} -> {outcome}",
             flush=True,
         )
         return run
@@ -330,12 +363,24 @@ def _print_grid(grid: Grid) -> None:
         row = [recipe]
         for m in grid.models:
             cell = grid.cell(recipe, m)
-            if cell.n:
-                row.append(f"{cell.accuracy:.2f}\n[dim]{cell.avg_tokens:,.0f} tok[/dim]")
-            else:
-                row.append("—")
+            if not cell.n_scored:
+                # No scorable runs — don't print a fake 0.00; say why.
+                row.append(f"[red]n/a[/red]\n[dim]{cell.errors} err[/dim]" if cell.errors else "—")
+                continue
+            text = (
+                f"{cell.accuracy:.2f} [dim](n={cell.n_scored})[/dim]\n"
+                f"[dim]{cell.avg_tokens:,.0f} tok[/dim]"
+            )
+            if cell.errors:
+                text += f"\n[yellow]{cell.errors} err[/yellow]"
+            row.append(text)
         table.add_row(*row)
     console.print(table)
+    if any(grid.cell(r, m).errors for r in grid.recipes for m in grid.models):
+        console.print(
+            "[dim]Accuracy is over successfully-scored runs only; 'err' = infra failures "
+            "(rate limit / connection), excluded rather than counted wrong.[/dim]"
+        )
 
 
 def _print_analysis(grid: Grid) -> None:
@@ -424,6 +469,8 @@ def _write_artifacts(grid: Grid, out_dir: Path) -> None:
                 "recipe": recipe,
                 "model": model,
                 "questions": grid.cell(recipe, model).n,
+                "scored": grid.cell(recipe, model).n_scored,
+                "errors": grid.cell(recipe, model).errors,
                 "accuracy": round(grid.cell(recipe, model).accuracy, 4),
                 "avg_model_calls": round(grid.cell(recipe, model).avg_model_calls, 2),
                 "avg_tokens": round(grid.cell(recipe, model).avg_tokens, 1),
@@ -508,9 +555,14 @@ def _markdown_report(grid: Grid, a: Analysis | None, generated_at: str) -> str:
                 "",
             ]
 
-    # Accuracy matrix.
+    # Accuracy matrix. Cells show accuracy over successfully-scored runs; an infra failure is
+    # excluded, not counted as a wrong answer, and flagged so the reader can weigh reliability.
+    any_errors = any(grid.cell(r, m).errors for r in grid.recipes for m in models)
     lines += [
         "## Accuracy: architecture (rows) × model (columns)",
+        "",
+        "Accuracy is over successfully-scored runs (`n`). Infra failures (rate limit / connection)"
+        " are excluded, not scored wrong; ⚠ marks cells that had any.",
         "",
         "| Recipe | " + " | ".join(short_model(m) for m in models) + " |",
         "|" + "---|" * (len(models) + 1),
@@ -519,8 +571,14 @@ def _markdown_report(grid: Grid, a: Analysis | None, generated_at: str) -> str:
         row = [recipe]
         for m in models:
             cell = grid.cell(recipe, m)
-            row.append(f"{cell.accuracy:.2f}" if cell.n else "—")
+            if not cell.n_scored:
+                row.append(f"n/a ({cell.errors} err)" if cell.errors else "—")
+                continue
+            flag = f" ⚠{cell.errors}" if cell.errors else ""
+            row.append(f"{cell.accuracy:.2f} (n={cell.n_scored}){flag}")
         lines.append("| " + " | ".join(row) + " |")
+    if any_errors:
+        lines += ["", "> ⚠N = N runs in that cell failed on infrastructure and were excluded."]
 
     # Cost matrix (avg tokens).
     lines += [
@@ -534,7 +592,7 @@ def _markdown_report(grid: Grid, a: Analysis | None, generated_at: str) -> str:
         row = [recipe]
         for m in models:
             cell = grid.cell(recipe, m)
-            row.append(f"{cell.avg_tokens:,.0f}" if cell.n else "—")
+            row.append(f"{cell.avg_tokens:,.0f}" if cell.n_scored else "—")
         lines.append("| " + " | ".join(row) + " |")
 
     # Per-cell detail.
