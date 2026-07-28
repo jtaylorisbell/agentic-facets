@@ -9,9 +9,9 @@ subset: pro
 # "Lookup / single-figure" questions: the answer is a value read from one table in one document.
 # The single-document recipes (00/01/02/03/05) evaluate against these. Kept to single-source,
 # table/figure-reading questions (not pure arithmetic torture) so the score reflects whether the
-# agent found and read the right rows — the thing document access actually buys. Eight questions
-# quantizes accuracy to eighths (0.125), fine enough for a pilot to separate architectures that
-# 4 questions (quarters) blur together.
+# agent found and read the right rows — the thing document access actually buys. Ten questions
+# quantizes accuracy to tenths (0.1), enough to separate architectures and models that a coarser
+# set (4 = quarters, 8 = eighths) would blur together.
 lookup:
   - UID0030   # Sep 1990 bulletin, page 5 — a count from one table
   - UID0121   # Jan 1980 ownership survey — categories over a $200M threshold
@@ -21,6 +21,8 @@ lookup:
   - UID0031   # Mar 1992 bulletin, Chart TF-G — year Highway Trust Fund outlays exceeded receipts
   - UID0035   # May 1980 bulletin, p.41 — count of leading-digit '1's in a table
   - UID0058   # Sep 2003 bulletin — total net Euro position reported Dec 2000
+  - UID0012   # Oct 1958 bulletin — spend by the highest-spending federal dept in FY1955
+  - UID0093   # Jun 1989 bulletin — Treasury liabilities owed to the UK in CY1986
 
 # Multi-document questions: the answer combines figures from more than one document/year.
 # The parallel-investigation recipe (04) evaluates against these.
@@ -28,3 +30,5 @@ multi_document:
   - UID0025   # absolute difference in spending across two years
   - UID0062   # change in an Army expenditure figure across two documents
   - UID0065   # absolute difference in a growth rate across two documents
+  - UID0244   # absolute difference in federal trust account receipts across two months
+  - UID0077   # change in income-tax contribution to total receipts across two documents

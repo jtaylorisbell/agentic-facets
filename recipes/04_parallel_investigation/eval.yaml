@@ -1,7 +1,12 @@
 recipe: 04_parallel_investigation
 # Multi-document questions, where fanning out one reader per document actually parallelizes work.
+# Each combines figures from two documents (a difference/change across years) — see
+# evals/datasets/officeqa_questions.yaml. Five here (vs. the lookup set's ten) because two-source
+# questions are scarcer and each costs more model calls.
 subset: pro
 uids:
   - UID0025
   - UID0062
   - UID0065
+  - UID0244
+  - UID0077
