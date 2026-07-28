@@ -1,72 +1,304 @@
 # Agentic FACETS — evaluation results
 
-- Generated: `2026-07-24T13:11:22+00:00`
-- Model: `system.ai.claude-sonnet-5`
-- Questions per recipe / scoring: OfficeQA subset, graded by the official `reward.py`.
+- Generated: `2026-07-28T01:07:22+00:00`
+- Models: `claude-haiku-4-5`, `claude-sonnet-5`, `claude-opus-5`
+- Scoring: OfficeQA subset, graded by the official `reward.py`.
 
-Real model + real data, so numbers vary run to run. The **pattern** is the point:
-document access is the big lever; extra agents are not automatically better.
+Real models + real data, so numbers vary run to run. The **pattern** is the point:
+document access is the big lever, and a better *architecture* can beat a better *model*.
 
-| Recipe | Questions | Answer accuracy | Avg model calls | Avg tokens |
-|---|---|---|---|---|
-| 00_closed_book_baseline | 4 | 0.50 | 1.0 | 425 |
-| 01_single_tool_agent | 4 | 0.50 | 10.0 | 181587 |
-| 02_routed_workflow | 4 | 0.50 | 6.5 | 33030 |
-| 03_planner_executor | 4 | 0.50 | 6.0 | 16461 |
-| 04_parallel_investigation | 3 | 0.33 | 11.7 | 158660 |
-| 05_manager_worker | 4 | 0.50 | 17.8 | 67741 |
+## The thesis, in two numbers
+
+Models ranked weakest→strongest by closed-book accuracy: `claude-haiku-4-5`, `claude-opus-5`, `claude-sonnet-5`.
+
+- **Model lift** (upgrade the LLM, closed-book): `claude-sonnet-5` − `claude-haiku-4-5` = **+0.10**
+- **Architecture lift** (give `claude-haiku-4-5` document tools): `01` − `00` = **+0.17**
+
+The architecture lever is **at least as large as** the model lever (**+0.17** vs **+0.10**).
+
+**Head-to-head:** weak model + tools = **0.38**; strong model, closed-book = **0.30**. Does architecture beat the model upgrade? **Yes.**
+
+> ⚠ The compared cells did not share an identical question set; treat the head-to-head as indicative rather than exact.
+
+## Accuracy: architecture (rows) × model (columns)
+
+Accuracy is over successfully-scored runs (`n`). Infra failures (rate limit / connection) are excluded, not scored wrong; ⚠ marks cells that had any.
+
+| Recipe | claude-haiku-4-5 | claude-sonnet-5 | claude-opus-5 |
+|---|---|---|---|
+| 00_closed_book_baseline | 0.20 (n=10) | 0.30 (n=10) | 0.20 (n=10) |
+| 01_single_tool_agent | 0.38 (n=8) ⚠2 | 0.40 (n=10) | 0.71 (n=7) ⚠3 |
+| 02_routed_workflow | 0.25 (n=8) ⚠2 | 0.30 (n=10) | 0.50 (n=10) |
+| 03_planner_executor | 0.20 (n=10) | 0.30 (n=10) | 0.50 (n=10) |
+| 04_parallel_investigation | 0.33 (n=3) ⚠2 | 0.25 (n=4) ⚠1 | 0.60 (n=5) |
+| 05_manager_worker | 0.33 (n=9) ⚠1 | 0.60 (n=10) | 0.80 (n=10) |
+
+> ⚠N = N runs in that cell failed on infrastructure and were excluded.
+
+## Cost: average tokens per question
+
+| Recipe | claude-haiku-4-5 | claude-sonnet-5 | claude-opus-5 |
+|---|---|---|---|
+| 00_closed_book_baseline | 383 | 435 | 972 |
+| 01_single_tool_agent | 225,116 | 147,028 | 112,909 |
+| 02_routed_workflow | 137,858 | 76,120 | 79,775 |
+| 03_planner_executor | 10,509 | 15,435 | 19,871 |
+| 04_parallel_investigation | 194,329 | 334,896 | 164,421 |
+| 05_manager_worker | 189,479 | 216,303 | 313,328 |
 
 ## Per-question detail
 
-### 00_closed_book_baseline
+### 00_closed_book_baseline · claude-haiku-4-5
 
 | Question | Correct | Model calls | Tokens | Steps | Stopped |
 |---|---|---|---|---|---|
-| UID0030 | ✗ | 1 | 517 | 1 | final |
+| UID0030 | ✗ | 1 | 288 | 1 | final |
+| UID0121 | ✗ | 1 | 660 | 1 | final |
+| UID0056 | ✓ | 1 | 448 | 1 | final |
+| UID0184 | ✗ | 1 | 429 | 1 | final |
+| UID0001 | ✗ | 1 | 315 | 1 | final |
+| UID0031 | ✓ | 1 | 316 | 1 | final |
+| UID0035 | ✗ | 1 | 381 | 1 | final |
+| UID0058 | ✗ | 1 | 332 | 1 | final |
+| UID0012 | ✗ | 1 | 313 | 1 | final |
+| UID0093 | ✗ | 1 | 346 | 1 | final |
+
+### 00_closed_book_baseline · claude-sonnet-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 1 | 543 | 1 | final |
 | UID0121 | ✗ | 1 | 482 | 1 | final |
-| UID0056 | ✓ | 1 | 354 | 1 | final |
+| UID0056 | ✓ | 1 | 483 | 1 | final |
 | UID0184 | ✓ | 1 | 346 | 1 | final |
+| UID0001 | ✗ | 1 | 258 | 1 | final |
+| UID0031 | ✓ | 1 | 311 | 1 | final |
+| UID0035 | ✗ | 1 | 766 | 1 | final |
+| UID0058 | ✗ | 1 | 284 | 1 | final |
+| UID0012 | ✗ | 1 | 597 | 1 | final |
+| UID0093 | ✗ | 1 | 279 | 1 | final |
 
-### 01_single_tool_agent
-
-| Question | Correct | Model calls | Tokens | Steps | Stopped |
-|---|---|---|---|---|---|
-| UID0030 | ✗ | 12 | 123538 | 12 | final |
-| UID0121 | ✓ | 7 | 85721 | 7 | final |
-| UID0056 | ✗ | 16 | 494420 | 16 | max_steps |
-| UID0184 | ✓ | 5 | 22668 | 5 | final |
-
-### 02_routed_workflow
+### 00_closed_book_baseline · claude-opus-5
 
 | Question | Correct | Model calls | Tokens | Steps | Stopped |
 |---|---|---|---|---|---|
-| UID0030 | ✗ | 5 | 6283 | 4 | final |
-| UID0121 | ✓ | 6 | 48278 | 5 | final |
-| UID0056 | ✗ | 9 | 55284 | 8 | max_steps |
-| UID0184 | ✓ | 6 | 22274 | 5 | final |
+| UID0030 | ✗ | 1 | 617 | 1 | final |
+| UID0121 | ✗ | 1 | 1573 | 1 | final |
+| UID0056 | ✓ | 1 | 950 | 1 | final |
+| UID0184 | ✗ | 1 | 888 | 1 | final |
+| UID0001 | ✗ | 1 | 879 | 1 | final |
+| UID0031 | ✓ | 1 | 495 | 1 | final |
+| UID0035 | ✗ | 1 | 641 | 1 | final |
+| UID0058 | ✗ | 1 | 1171 | 1 | final |
+| UID0012 | ✗ | 1 | 600 | 1 | final |
+| UID0093 | ✗ | 1 | 1906 | 1 | final |
 
-### 03_planner_executor
-
-| Question | Correct | Model calls | Tokens | Steps | Stopped |
-|---|---|---|---|---|---|
-| UID0030 | ✗ | 6 | 16078 | 5 | max_replans |
-| UID0121 | ✗ | 6 | 17104 | 5 | max_replans |
-| UID0056 | ✓ | 6 | 13502 | 5 | max_replans |
-| UID0184 | ✓ | 6 | 19159 | 5 | max_replans |
-
-### 04_parallel_investigation
+### 01_single_tool_agent · claude-haiku-4-5
 
 | Question | Correct | Model calls | Tokens | Steps | Stopped |
 |---|---|---|---|---|---|
-| UID0025 | ✗ | 14 | 197585 | 3 | final |
-| UID0062 | ✗ | 12 | 168462 | 3 | final |
-| UID0065 | ✓ | 9 | 109932 | 3 | final |
+| UID0030 | ✗ | 11 | 80759 | 11 | final |
+| UID0121 | ✗ | 12 | 218010 | 12 | final |
+| UID0056 | ✓ | 12 | 638686 | 12 | final |
+| UID0184 | ✓ | 7 | 41666 | 7 | final |
+| UID0001 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+| UID0031 | ✗ | 16 | 466528 | 16 | max_steps |
+| UID0035 | ✗ | 12 | 218168 | 12 | final |
+| UID0058 | ✓ | 6 | 34682 | 6 | final |
+| UID0012 | ✗ | 7 | 102429 | 7 | final |
+| UID0093 | ✗ | 0 | 0 | 0 | error: RateLimitError |
 
-### 05_manager_worker
+### 01_single_tool_agent · claude-sonnet-5
 
 | Question | Correct | Model calls | Tokens | Steps | Stopped |
 |---|---|---|---|---|---|
-| UID0030 | ✗ | 24 | 95522 | 5 | final |
-| UID0121 | ✗ | 12 | 61971 | 3 | final |
-| UID0056 | ✓ | 26 | 93220 | 5 | final |
-| UID0184 | ✓ | 9 | 20252 | 3 | final |
+| UID0030 | ✗ | 16 | 162074 | 16 | max_steps |
+| UID0121 | ✓ | 6 | 52994 | 6 | final |
+| UID0056 | ✗ | 16 | 263917 | 16 | max_steps |
+| UID0184 | ✓ | 5 | 22423 | 5 | final |
+| UID0001 | ✓ | 5 | 24793 | 5 | final |
+| UID0031 | ✗ | 16 | 255417 | 16 | max_steps |
+| UID0035 | ✗ | 6 | 24361 | 6 | final |
+| UID0058 | ✓ | 6 | 33038 | 6 | final |
+| UID0012 | ✗ | 4 | 43619 | 4 | final |
+| UID0093 | ✗ | 16 | 587640 | 16 | max_steps |
+
+### 01_single_tool_agent · claude-opus-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 7 | 94541 | 7 | final |
+| UID0121 | ✓ | 6 | 119288 | 6 | final |
+| UID0056 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+| UID0184 | ✓ | 6 | 35066 | 6 | final |
+| UID0001 | ✓ | 5 | 36537 | 5 | final |
+| UID0031 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+| UID0035 | ✓ | 10 | 76865 | 10 | final |
+| UID0058 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+| UID0012 | ✗ | 6 | 128431 | 6 | final |
+| UID0093 | ✓ | 14 | 299636 | 14 | final |
+
+### 02_routed_workflow · claude-haiku-4-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 9 | 58960 | 8 | max_steps |
+| UID0121 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+| UID0056 | ✓ | 10 | 359321 | 9 | final |
+| UID0184 | ✓ | 9 | 51064 | 8 | final |
+| UID0001 | ✗ | 9 | 28298 | 8 | max_steps |
+| UID0031 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+| UID0035 | ✗ | 10 | 72967 | 9 | final |
+| UID0058 | ✗ | 7 | 36973 | 6 | final |
+| UID0012 | ✗ | 6 | 55619 | 5 | final |
+| UID0093 | ✗ | 17 | 439659 | 16 | max_steps |
+
+### 02_routed_workflow · claude-sonnet-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 9 | 81405 | 8 | max_steps |
+| UID0121 | ✓ | 10 | 189620 | 9 | final |
+| UID0056 | ✗ | 9 | 52280 | 8 | max_steps |
+| UID0184 | ✓ | 6 | 21767 | 5 | final |
+| UID0001 | ✓ | 7 | 31863 | 6 | final |
+| UID0031 | ✗ | 9 | 33420 | 8 | max_steps |
+| UID0035 | ✗ | 6 | 21421 | 5 | final |
+| UID0058 | ✗ | 9 | 151871 | 8 | max_steps |
+| UID0012 | ✗ | 6 | 64115 | 5 | final |
+| UID0093 | ✗ | 9 | 113443 | 8 | max_steps |
+
+### 02_routed_workflow · claude-opus-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 8 | 48090 | 7 | final |
+| UID0121 | ✓ | 9 | 107797 | 8 | final |
+| UID0056 | ✓ | 9 | 164698 | 8 | final |
+| UID0184 | ✓ | 6 | 24978 | 5 | final |
+| UID0001 | ✓ | 7 | 75966 | 6 | final |
+| UID0031 | ✗ | 9 | 48526 | 8 | max_steps |
+| UID0035 | ✗ | 17 | 181387 | 16 | max_steps |
+| UID0058 | ✓ | 5 | 24300 | 4 | final |
+| UID0012 | ✗ | 5 | 29519 | 4 | final |
+| UID0093 | ✗ | 9 | 92490 | 8 | max_steps |
+
+### 03_planner_executor · claude-haiku-4-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 6 | 9277 | 5 | max_replans |
+| UID0121 | ✗ | 6 | 12686 | 5 | max_replans |
+| UID0056 | ✓ | 6 | 9564 | 7 | max_replans |
+| UID0184 | ✗ | 6 | 13131 | 5 | max_replans |
+| UID0001 | ✗ | 6 | 10377 | 5 | max_replans |
+| UID0031 | ✓ | 6 | 8519 | 6 | max_replans |
+| UID0035 | ✗ | 6 | 9411 | 5 | max_replans |
+| UID0058 | ✗ | 6 | 11599 | 6 | max_replans |
+| UID0012 | ✗ | 6 | 9571 | 5 | max_replans |
+| UID0093 | ✗ | 6 | 10952 | 5 | max_replans |
+
+### 03_planner_executor · claude-sonnet-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 6 | 12830 | 5 | max_replans |
+| UID0121 | ✗ | 6 | 17006 | 5 | max_replans |
+| UID0056 | ✓ | 6 | 11192 | 5 | max_replans |
+| UID0184 | ✓ | 6 | 18038 | 5 | max_replans |
+| UID0001 | ✗ | 6 | 15417 | 5 | max_replans |
+| UID0031 | ✓ | 6 | 12936 | 5 | max_replans |
+| UID0035 | ✗ | 6 | 15806 | 6 | max_replans |
+| UID0058 | ✗ | 6 | 14658 | 5 | max_replans |
+| UID0012 | ✗ | 6 | 15034 | 5 | max_replans |
+| UID0093 | ✗ | 6 | 21434 | 5 | max_replans |
+
+### 03_planner_executor · claude-opus-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 6 | 17143 | 11 | max_replans |
+| UID0121 | ✗ | 6 | 23174 | 8 | max_replans |
+| UID0056 | ✓ | 6 | 14693 | 10 | max_replans |
+| UID0184 | ✓ | 6 | 19247 | 6 | max_replans |
+| UID0001 | ✓ | 6 | 19345 | 6 | max_replans |
+| UID0031 | ✓ | 6 | 17943 | 9 | max_replans |
+| UID0035 | ✗ | 6 | 24265 | 8 | max_replans |
+| UID0058 | ✗ | 6 | 18979 | 7 | max_replans |
+| UID0012 | ✗ | 6 | 15710 | 8 | max_replans |
+| UID0093 | ✓ | 6 | 28207 | 12 | max_replans |
+
+### 04_parallel_investigation · claude-haiku-4-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0025 | ✗ | 17 | 375183 | 3 | final |
+| UID0062 | ✗ | 14 | 140033 | 3 | final |
+| UID0065 | ✓ | 13 | 67770 | 3 | final |
+| UID0244 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+| UID0077 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+
+### 04_parallel_investigation · claude-sonnet-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0025 | ✗ | 17 | 462279 | 3 | final |
+| UID0062 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+| UID0065 | ✓ | 11 | 157742 | 3 | final |
+| UID0244 | ✗ | 14 | 437660 | 3 | final |
+| UID0077 | ✗ | 17 | 281904 | 3 | final |
+
+### 04_parallel_investigation · claude-opus-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0025 | ✓ | 9 | 74992 | 3 | final |
+| UID0062 | ✗ | 10 | 112705 | 3 | final |
+| UID0065 | ✓ | 5 | 16610 | 3 | final |
+| UID0244 | ✓ | 12 | 241503 | 3 | final |
+| UID0077 | ✗ | 17 | 376294 | 3 | final |
+
+### 05_manager_worker · claude-haiku-4-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 8 | 19509 | 2 | final |
+| UID0121 | ✓ | 10 | 74274 | 2 | final |
+| UID0056 | ✗ | 0 | 0 | 0 | error: RateLimitError |
+| UID0184 | ✓ | 11 | 37488 | 3 | final |
+| UID0001 | ✗ | 9 | 38097 | 2 | final |
+| UID0031 | ✗ | 108 | 1345347 | 12 | max_steps |
+| UID0035 | ✗ | 8 | 33319 | 2 | final |
+| UID0058 | ✗ | 6 | 16390 | 2 | final |
+| UID0012 | ✗ | 7 | 57997 | 2 | final |
+| UID0093 | ✓ | 11 | 82887 | 3 | final |
+
+### 05_manager_worker · claude-sonnet-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 10 | 49396 | 2 | final |
+| UID0121 | ✗ | 9 | 43933 | 3 | final |
+| UID0056 | ✓ | 13 | 45701 | 3 | final |
+| UID0184 | ✓ | 10 | 31041 | 3 | final |
+| UID0001 | ✓ | 41 | 564669 | 7 | final |
+| UID0031 | ✗ | 98 | 848158 | 12 | max_steps |
+| UID0035 | ✓ | 14 | 78803 | 3 | final |
+| UID0058 | ✓ | 11 | 64718 | 3 | final |
+| UID0012 | ✗ | 7 | 19987 | 2 | final |
+| UID0093 | ✓ | 51 | 416620 | 8 | final |
+
+### 05_manager_worker · claude-opus-5
+
+| Question | Correct | Model calls | Tokens | Steps | Stopped |
+|---|---|---|---|---|---|
+| UID0030 | ✗ | 40 | 349601 | 7 | final |
+| UID0121 | ✓ | 12 | 155107 | 3 | final |
+| UID0056 | ✓ | 15 | 132094 | 4 | final |
+| UID0184 | ✓ | 9 | 19627 | 3 | final |
+| UID0001 | ✓ | 9 | 24968 | 3 | final |
+| UID0031 | ✓ | 69 | 1275480 | 10 | final |
+| UID0035 | ✓ | 18 | 74661 | 4 | final |
+| UID0058 | ✓ | 12 | 78065 | 3 | final |
+| UID0012 | ✗ | 7 | 65316 | 2 | final |
+| UID0093 | ✓ | 54 | 958362 | 8 | final |

@@ -108,42 +108,59 @@ flowchart LR
     R1 -->|"Topology:<br/>single → manager"| R5
 ```
 
-## The evidence: same question, several architectures
+## The evidence: is the architecture as important as the model?
 
-Run every recipe against the same question and score each answer with OfficeQA's own reward
-function:
+That's the question worth settling with data, and it needs a **grid** — the same questions run
+through every architecture *and* several models, so you can compare two levers. Change the
+architecture (hold the model fixed); change the model (hold the architecture fixed); see which
+moves accuracy more. The harness sweeps a model axis and scores every cell with OfficeQA's own
+reward function:
 
 ```bash
-uv run python evals/run_evals.py
+uv run python evals/run_evals.py \
+  --models system.ai.claude-haiku-4-5,system.ai.claude-sonnet-5,system.ai.claude-opus-5 --out
 ```
 
-Here's a committed run over the recipes' evaluation questions — the full artifact, with
-per-question detail, lives in [`evals/results/latest.md`](evals/results/latest.md):
+Here's a committed run — three Claude models (a weak→strong capability ladder) × six architectures
+× the shared question set. Accuracy is over successfully-scored runs; the full artifact, with
+cost and per-question detail, is in [`evals/results/latest.md`](evals/results/latest.md):
 
-| Recipe | Questions | Accuracy | Avg model calls | Avg tokens |
-|---|---|---|---|---|
-| 00 · Closed-book baseline | 4 | 0.50 | 1.0 | 425 |
-| 01 · Single document agent | 4 | 0.50 | 10.0 | 181,587 |
-| 02 · Routed workflow | 4 | 0.50 | 6.5 | 33,030 |
-| 03 · Planner–executor | 4 | 0.50 | 6.0 | 16,461 |
-| 04 · Parallel investigation | 3 | 0.33 | 11.7 | 158,660 |
-| 05 · Manager–worker | 4 | 0.50 | 17.8 | 67,741 |
+| Recipe | `haiku-4-5` | `sonnet-5` | `opus-5` |
+|---|---|---|---|
+| 00 · Closed-book baseline | 0.20 | 0.30 | 0.20 |
+| 01 · Single document agent | 0.38 | 0.40 | **0.71** |
+| 02 · Routed workflow | 0.25 | 0.30 | 0.50 |
+| 03 · Planner–executor | 0.20 | 0.30 | 0.50 |
+| 04 · Parallel investigation | 0.33 | 0.25 | 0.60 |
+| 05 · Manager–worker | 0.33 | 0.60 | **0.80** |
 
-Read this slowly, because it is *not* the tidy story you'd expect. These are genuinely hard
-questions, and every architecture lands around 0.50 — document access is *necessary* (the
-closed-book baseline only scores where the model already knew the figure), but on multi-step
-numeric questions it is not *sufficient*: the agents still misread tables and botch arithmetic.
+Read it both ways, because the answer is in the shape of the grid:
 
-Now look at the cost columns. The manager–worker system averages **17.8 model calls** — one
-question took 26 — to reach the same 0.50 as the planner–executor's **6 calls and ~16k tokens**.
-The fancy topologies cost 3–18× more here and buy no accuracy. Beautiful diagrams, far more
-machinery, same score.
+- **Closed-book, every model is bad — and about equally bad** (0.20–0.30). No model has an obscure
+  Treasury Bulletin table memorized, so *the model alone is a weak lever*: upgrading haiku→opus
+  with no architecture buys almost nothing.
+- **Architecture is the bigger lever, and it compounds with the model.** Give a fixed model its
+  best architecture and accuracy climbs far more than a model upgrade ever did: haiku **+0.17**,
+  sonnet **+0.30**, opus **+0.60** — from 0.20 closed-book to **0.80** with manager–worker. The two
+  levers *multiply*; the best cells need a capable model **and** a real architecture.
+- **The thesis, in one comparison:** on the shared questions, **haiku with the single-document
+  agent (0.38) ties sonnet answering closed-book (0.38)**. The smaller model, wired well, catches
+  the bigger model that isn't.
+- **But architecture only helps a model capable enough to drive it.** The same manager–worker
+  topology is 0.33 for haiku and 0.80 for opus. (In the pilot, a genuinely weak open model scored
+  **0.00** *with* tools — below some capability floor, machinery makes things worse.) Machinery
+  isn't magic; it's leverage, and leverage needs something to push on.
 
-I can't emphasize this caveat enough: these are *real model runs*, so exact cells shift between
-runs — regenerate the file with `--out` and the numbers move. The **pattern** is the durable
-lesson, not any single number: document access is the lever that matters, extra machinery is not
-free, and it is not automatically better. Pick the simplest architecture that clears your
-reliability bar, and make every fancier recipe earn its price. Do not be a hero.
+And the caveat that keeps this honest — **cost is the counterweight.** opus + manager–worker's 0.80
+costs ~**313k tokens/question**, roughly 320× the closed-book baseline; opus + planner–executor
+reaches 0.50 at **20k tokens**, 1/15th the price. So both things are true at once: a better
+architecture genuinely lifts accuracy, *and* the fanciest one is rarely worth its price. Pick the
+cheapest architecture that clears your reliability bar, match it to a model strong enough to use
+it, and make every fancier recipe earn the tokens. Do not be a hero.
+
+> These are real model runs on hard questions at small `n` (10 lookup questions; fewer where a rate
+> limit cost a cell). Exact numbers shift between runs — the **pattern** is the durable lesson, not
+> any single cell.
 
 ## Is this cheating? (No — and here's exactly what's real)
 
@@ -163,19 +180,28 @@ Feedback/Execution concern, and it doesn't change any recipe's topology.
 
 ## Running it
 
-Everything calls a real model over real (gated) data, so you need two credentials in `.env`:
+Everything calls a real model over real (gated) data, so you need two credentials. The model is
+authenticated with **OAuth by default** (tokens refresh automatically, so a long eval sweep can't
+die mid-run) — a static token is a CI-only fallback:
 
 ```bash
+# 1. Log in to your workspace via OAuth (opens a browser):
+databricks auth login --host https://<workspace>.cloud.databricks.com --profile my-workspace
+
+# 2. Point .env at that profile + your Hugging Face token:
 cp .env.example .env
-# DATABRICKS_HOST + DATABRICKS_TOKEN  → the model, via the Unity AI Gateway
-# FACETS_MODEL                        → e.g. system.ai.claude-sonnet-5
-# HF_TOKEN                            → a Hugging Face token with access to the gated
-#                                       databricks/officeqa dataset (accept its terms first)
+# DATABRICKS_CONFIG_PROFILE → my-workspace   (OAuth; DATABRICKS_TOKEN stays blank)
+# DATABRICKS_HOST           → your workspace URL
+# FACETS_MODEL              → e.g. system.ai.claude-sonnet-5
+# HF_TOKEN                  → a Hugging Face token with access to the gated
+#                             databricks/officeqa dataset (accept its terms first)
+
 uv run python recipes/01_single_tool_agent/app.py --uid UID0056
 ```
 
 The recipe code doesn't change based on which model you point at — the `ModelProvider` behind it
-does. That seam is the point.
+does. That seam is the point, and it's what lets the eval harness sweep several models at once
+(`--models A,B,C`) to build the grid above.
 
 ## What's in the repo
 
