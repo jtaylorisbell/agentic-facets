@@ -128,26 +128,27 @@ cost and per-question detail, is in [`evals/results/latest.md`](evals/results/la
 | Recipe | `haiku-4-5` | `sonnet-5` | `opus-5` |
 |---|---|---|---|
 | 00 · Closed-book baseline | 0.20 | 0.30 | 0.20 |
-| 01 · Single document agent | 0.38 | 0.40 | **0.71** |
-| 02 · Routed workflow | 0.25 | 0.30 | 0.50 |
+| 01 · Single document agent | **0.50** | 0.40 | **0.70** |
+| 02 · Routed workflow | 0.30 | 0.30 | 0.50 |
 | 03 · Planner–executor | 0.20 | 0.30 | 0.50 |
-| 04 · Parallel investigation | 0.33 | 0.25 | 0.60 |
-| 05 · Manager–worker | 0.33 | 0.60 | **0.80** |
+| 04 · Parallel investigation | 0.20 | 0.20 | 0.60 |
+| 05 · Manager–worker | 0.30 | 0.60 | **0.80** |
 
-Read it both ways, because the answer is in the shape of the grid:
+Every cell is 10 questions (5 for the two-document parallel recipe) — the full grid, no dropped
+cells. Read it both ways, because the answer is in the shape of the grid:
 
 - **Closed-book, every model is bad — and about equally bad** (0.20–0.30). No model has an obscure
   Treasury Bulletin table memorized, so *the model alone is a weak lever*: upgrading haiku→opus
   with no architecture buys almost nothing.
 - **Architecture is the bigger lever, and it compounds with the model.** Give a fixed model its
-  best architecture and accuracy climbs far more than a model upgrade ever did: haiku **+0.17**,
+  best architecture and accuracy climbs far more than a model upgrade ever did: haiku **+0.30**,
   sonnet **+0.30**, opus **+0.60** — from 0.20 closed-book to **0.80** with manager–worker. The two
   levers *multiply*; the best cells need a capable model **and** a real architecture.
 - **The thesis, in one comparison:** on the shared questions, **haiku with the single-document
-  agent (0.38) ties sonnet answering closed-book (0.38)**. The smaller model, wired well, catches
-  the bigger model that isn't.
+  agent (0.50) beats sonnet answering closed-book (0.30)**. The smaller model, wired well, doesn't
+  just catch the bigger model that isn't — it overtakes it.
 - **But architecture only helps a model capable enough to drive it.** The same manager–worker
-  topology is 0.33 for haiku and 0.80 for opus. (In the pilot, a genuinely weak open model scored
+  topology is 0.30 for haiku and 0.80 for opus. (In the pilot, a genuinely weak open model scored
   **0.00** *with* tools — below some capability floor, machinery makes things worse.) Machinery
   isn't magic; it's leverage, and leverage needs something to push on.
 
@@ -158,9 +159,8 @@ architecture genuinely lifts accuracy, *and* the fanciest one is rarely worth it
 cheapest architecture that clears your reliability bar, match it to a model strong enough to use
 it, and make every fancier recipe earn the tokens. Do not be a hero.
 
-> These are real model runs on hard questions at small `n` (10 lookup questions; fewer where a rate
-> limit cost a cell). Exact numbers shift between runs — the **pattern** is the durable lesson, not
-> any single cell.
+> These are real model runs on hard questions at small `n` (10 lookup questions, 5 multi-document).
+> Exact numbers shift between runs — the **pattern** is the durable lesson, not any single cell.
 
 ## Is this cheating? (No — and here's exactly what's real)
 

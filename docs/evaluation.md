@@ -35,27 +35,27 @@ Here is a committed, reproducible run of the full grid — three Claude models (
 [`evals/results/latest.md`](https://github.com/jtaylorisbell/agentic-facets/blob/main/evals/results/latest.md)
 and `latest.json`.
 
-**Answer accuracy** (over successfully-scored runs; `n` in parentheses):
+**Answer accuracy** (over successfully-scored runs; `n` in parentheses — every cell is complete):
 
 | Recipe | `haiku-4-5` | `sonnet-5` | `opus-5` |
 |---|---|---|---|
 | 00 · Closed-book baseline | 0.20 (10) | 0.30 (10) | 0.20 (10) |
-| 01 · Single document agent | 0.38 (8) | 0.40 (10) | **0.71** (7) |
-| 02 · Routed workflow | 0.25 (8) | 0.30 (10) | 0.50 (10) |
+| 01 · Single document agent | **0.50** (10) | 0.40 (10) | **0.70** (10) |
+| 02 · Routed workflow | 0.30 (10) | 0.30 (10) | 0.50 (10) |
 | 03 · Planner–executor | 0.20 (10) | 0.30 (10) | 0.50 (10) |
-| 04 · Parallel investigation | 0.33 (3) | 0.25 (4) | 0.60 (5) |
-| 05 · Manager–worker | 0.33 (9) | 0.60 (10) | **0.80** (10) |
+| 04 · Parallel investigation | 0.20 (5) | 0.20 (5) | 0.60 (5) |
+| 05 · Manager–worker | 0.30 (10) | 0.60 (10) | **0.80** (10) |
 
 **Cost** (average tokens per question):
 
 | Recipe | `haiku-4-5` | `sonnet-5` | `opus-5` |
 |---|---|---|---|
 | 00 · Closed-book baseline | 383 | 435 | 972 |
-| 01 · Single document agent | 225,116 | 147,028 | 112,909 |
-| 02 · Routed workflow | 137,858 | 76,120 | 79,775 |
+| 01 · Single document agent | 223,432 | 147,028 | 187,653 |
+| 02 · Routed workflow | 127,363 | 76,120 | 79,775 |
 | 03 · Planner–executor | 10,509 | 15,435 | 19,871 |
-| 04 · Parallel investigation | 194,329 | 334,896 | 164,421 |
-| 05 · Manager–worker | 189,479 | 216,303 | 313,328 |
+| 04 · Parallel investigation | 257,555 | 307,853 | 164,421 |
+| 05 · Manager–worker | 296,059 | 216,303 | 313,328 |
 
 Read the grid down a column and across a row, because both directions carry the lesson:
 
@@ -64,14 +64,14 @@ Read the grid down a column and across a row, because both directions carry the 
   the model is flying blind. This is the honest control: *the model alone is not the lever.*
 - **Architecture is the bigger lever, and it compounds with the model.** Hold a model fixed and
   give it the best architecture and accuracy climbs far more than upgrading the model ever did
-  closed-book: `haiku` +0.17, `sonnet` +0.30, `opus` **+0.60** (0.20 → 0.80 with manager–worker).
+  closed-book: `haiku` +0.30, `sonnet` +0.30, `opus` **+0.60** (0.20 → 0.80 with manager–worker).
   The two levers *multiply* — the biggest wins need a capable model **and** a real architecture,
   neither alone.
-- **Weaker + architecture matches stronger + nothing.** On the shared questions, `haiku` with the
-  single-document agent (0.38) **ties** `sonnet` answering closed-book (0.38). Give the small model
-  the right wiring and it catches a bigger model that has none — the thesis, in one comparison.
+- **Weaker + architecture beats stronger + nothing.** On the shared questions, `haiku` with the
+  single-document agent (0.50) **beats** `sonnet` answering closed-book (0.30). Give the small model
+  the right wiring and it overtakes a bigger model that has none — the thesis, in one comparison.
 - **…but architecture only pays off for a model capable enough to drive it.** The same
-  manager–worker topology scores 0.33 for `haiku` and 0.80 for `opus`. Machinery is not magic; it
+  manager–worker topology scores 0.30 for `haiku` and 0.80 for `opus`. Machinery is not magic; it
   is *leverage*, and leverage needs something to push on. (The pilot's `gpt-oss-20b` couldn't use
   document tools at all — 0.00 — a reminder that below some capability floor, more architecture
   makes things *worse*.)
@@ -82,12 +82,12 @@ Read the grid down a column and across a row, because both directions carry the 
   the reliability you actually need.
 
 !!! note "Read the pattern, not the cell"
-    These are real model runs on genuinely hard questions with a small `n` (10 lookup questions;
-    fewer where rate limits cost us a cell — parallel investigation is the thinnest, `n`=3–5).
-    Exact cells shift between runs; regenerate with `--out` and they move. The **durable signals**
-    are the shape of the grid: the model alone is a weak lever, architecture is a strong one, the
-    two compound, and the strongest cells cost 100–300× the simplest. Treat the numbers as
-    directional evidence for those claims, not as a benchmark leaderboard.
+    These are real model runs on genuinely hard questions with a small `n` (10 lookup questions, 5
+    multi-document for the parallel recipe). Exact cells shift between runs; regenerate with
+    `--out` and they move. The **durable signals** are the shape of the grid: the model alone is a
+    weak lever, architecture is a strong one, the two compound, and the strongest cells cost
+    100–300× the simplest. Treat the numbers as directional evidence for those claims, not as a
+    benchmark leaderboard.
 
 ## The two lifts, and the head-to-head
 
@@ -96,9 +96,9 @@ the matrix:
 
 - **Model lift** — hold the architecture fixed (closed-book) and upgrade the LLM. Here: **+0.10**.
 - **Architecture lift** — hold the model fixed and give it document tools (00 → 01). Here the
-  weakest model gains **+0.17**, and the strongest gains **+0.51** on the same change.
-- **Head-to-head** — weaker model + tools vs. stronger model, closed-book. Here they tie at
-  **0.38**, so architecture is at least as strong a lever as the model.
+  weakest model gains **+0.30**, and the strongest gains **+0.50** on the same change.
+- **Head-to-head** — weaker model + tools vs. stronger model, closed-book. Here `haiku` + tools
+  (0.50) **beats** `sonnet` closed-book (0.30), so architecture is a stronger lever than the model.
 
 The verdict the run prints: **architecture is the bigger lever** — and, read together with the
 compounding above, the fuller truth is that architecture and model capability are complements, not

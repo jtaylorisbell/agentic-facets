@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-28T01:07:22+00:00",
+  "generated_at": "2026-07-28T17:11:05+00:00",
   "models": [
     "system.ai.claude-haiku-4-5",
     "system.ai.claude-sonnet-5",
@@ -23,12 +23,12 @@
       "system.ai.claude-sonnet-5"
     ],
     "model_lift": 0.1,
-    "architecture_lift": 0.175,
-    "weak_model_with_tools": 0.375,
+    "architecture_lift": 0.3,
+    "weak_model_with_tools": 0.5,
     "strong_model_no_tools": 0.3,
     "architecture_at_least_as_strong_as_model": true,
     "weak_plus_tools_beats_strong_alone": true,
-    "comparable": false
+    "comparable": true
   },
   "cells": [
     {
@@ -311,11 +311,11 @@
       "recipe": "01_single_tool_agent",
       "model": "system.ai.claude-haiku-4-5",
       "questions": 10,
-      "scored": 8,
-      "errors": 2,
-      "accuracy": 0.375,
-      "avg_model_calls": 10.38,
-      "avg_tokens": 225116.0,
+      "scored": 10,
+      "errors": 0,
+      "accuracy": 0.5,
+      "avg_model_calls": 10.6,
+      "avg_tokens": 223432.5,
       "runs": [
         {
           "uid": "UID0030",
@@ -351,11 +351,11 @@
         },
         {
           "uid": "UID0001",
-          "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "correct": 1.0,
+          "model_calls": 13,
+          "total_tokens": 335345,
+          "steps": 13,
+          "stopped_reason": "final"
         },
         {
           "uid": "UID0031",
@@ -391,11 +391,11 @@
         },
         {
           "uid": "UID0093",
-          "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "correct": 1.0,
+          "model_calls": 10,
+          "total_tokens": 98052,
+          "steps": 10,
+          "stopped_reason": "final"
         }
       ]
     },
@@ -495,11 +495,11 @@
       "recipe": "01_single_tool_agent",
       "model": "system.ai.claude-opus-5",
       "questions": 10,
-      "scored": 7,
-      "errors": 3,
-      "accuracy": 0.7143,
-      "avg_model_calls": 7.71,
-      "avg_tokens": 112909.1,
+      "scored": 10,
+      "errors": 0,
+      "accuracy": 0.7,
+      "avg_model_calls": 8.9,
+      "avg_tokens": 187652.8,
       "runs": [
         {
           "uid": "UID0030",
@@ -519,11 +519,11 @@
         },
         {
           "uid": "UID0056",
-          "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "correct": 1.0,
+          "model_calls": 13,
+          "total_tokens": 530003,
+          "steps": 13,
+          "stopped_reason": "final"
         },
         {
           "uid": "UID0184",
@@ -544,10 +544,10 @@
         {
           "uid": "UID0031",
           "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "model_calls": 16,
+          "total_tokens": 480588,
+          "steps": 16,
+          "stopped_reason": "max_steps"
         },
         {
           "uid": "UID0035",
@@ -559,11 +559,11 @@
         },
         {
           "uid": "UID0058",
-          "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "correct": 1.0,
+          "model_calls": 6,
+          "total_tokens": 75573,
+          "steps": 6,
+          "stopped_reason": "final"
         },
         {
           "uid": "UID0012",
@@ -587,11 +587,11 @@
       "recipe": "02_routed_workflow",
       "model": "system.ai.claude-haiku-4-5",
       "questions": 10,
-      "scored": 8,
-      "errors": 2,
-      "accuracy": 0.25,
-      "avg_model_calls": 9.62,
-      "avg_tokens": 137857.6,
+      "scored": 10,
+      "errors": 0,
+      "accuracy": 0.3,
+      "avg_model_calls": 9.2,
+      "avg_tokens": 127363.1,
       "runs": [
         {
           "uid": "UID0030",
@@ -603,11 +603,11 @@
         },
         {
           "uid": "UID0121",
-          "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "correct": 1.0,
+          "model_calls": 6,
+          "total_tokens": 114066,
+          "steps": 5,
+          "stopped_reason": "final"
         },
         {
           "uid": "UID0056",
@@ -636,10 +636,10 @@
         {
           "uid": "UID0031",
           "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "model_calls": 9,
+          "total_tokens": 56704,
+          "steps": 8,
+          "stopped_reason": "max_steps"
         },
         {
           "uid": "UID0035",
@@ -1139,11 +1139,11 @@
       "recipe": "04_parallel_investigation",
       "model": "system.ai.claude-haiku-4-5",
       "questions": 5,
-      "scored": 3,
-      "errors": 2,
-      "accuracy": 0.3333,
-      "avg_model_calls": 14.67,
-      "avg_tokens": 194328.7,
+      "scored": 5,
+      "errors": 0,
+      "accuracy": 0.2,
+      "avg_model_calls": 15.6,
+      "avg_tokens": 257555.2,
       "runs": [
         {
           "uid": "UID0025",
@@ -1172,18 +1172,18 @@
         {
           "uid": "UID0244",
           "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "model_calls": 17,
+          "total_tokens": 282222,
+          "steps": 3,
+          "stopped_reason": "final"
         },
         {
           "uid": "UID0077",
           "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "model_calls": 17,
+          "total_tokens": 422568,
+          "steps": 3,
+          "stopped_reason": "final"
         }
       ]
     },
@@ -1191,11 +1191,11 @@
       "recipe": "04_parallel_investigation",
       "model": "system.ai.claude-sonnet-5",
       "questions": 5,
-      "scored": 4,
-      "errors": 1,
-      "accuracy": 0.25,
-      "avg_model_calls": 14.75,
-      "avg_tokens": 334896.2,
+      "scored": 5,
+      "errors": 0,
+      "accuracy": 0.2,
+      "avg_model_calls": 14.4,
+      "avg_tokens": 307853.0,
       "runs": [
         {
           "uid": "UID0025",
@@ -1208,10 +1208,10 @@
         {
           "uid": "UID0062",
           "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "model_calls": 13,
+          "total_tokens": 199680,
+          "steps": 3,
+          "stopped_reason": "final"
         },
         {
           "uid": "UID0065",
@@ -1295,11 +1295,11 @@
       "recipe": "05_manager_worker",
       "model": "system.ai.claude-haiku-4-5",
       "questions": 10,
-      "scored": 9,
-      "errors": 1,
-      "accuracy": 0.3333,
-      "avg_model_calls": 19.78,
-      "avg_tokens": 189478.7,
+      "scored": 10,
+      "errors": 0,
+      "accuracy": 0.3,
+      "avg_model_calls": 23.8,
+      "avg_tokens": 296058.7,
       "runs": [
         {
           "uid": "UID0030",
@@ -1320,10 +1320,10 @@
         {
           "uid": "UID0056",
           "correct": 0.0,
-          "model_calls": 0,
-          "total_tokens": 0,
-          "steps": 0,
-          "stopped_reason": "error: RateLimitError"
+          "model_calls": 60,
+          "total_tokens": 1255279,
+          "steps": 8,
+          "stopped_reason": "final"
         },
         {
           "uid": "UID0184",
