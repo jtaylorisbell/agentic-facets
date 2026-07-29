@@ -63,4 +63,5 @@ nav:
       - 04 · Parallel Investigation: recipes/04-parallel-investigation.md
       - 05 · Manager–Worker: recipes/05-manager-worker.md
   - Evaluation: evaluation.md
+  - "Design note: GAIA scenario": scenarios-gaia.md
   - Production Checklist: production-checklist.md
